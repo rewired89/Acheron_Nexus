@@ -164,6 +164,8 @@ class QueryResult(BaseModel):
     pmcid: Optional[str] = None
     section: str = ""
     relevance_score: float = 0.0
+    url: str = Field(default="", description="Direct link to the source record (paper, protein, structure, or gene entry)")
+    source: str = Field(default="", description="Origin collector, e.g. pubmed, uniprot, pdb, alphafold, ncbi_gene")
     # Evidence span fields
     source_file: str = ""
     span_start: int = 0
@@ -178,6 +180,19 @@ class QueryResult(BaseModel):
         doi_part = f" (DOI: {self.doi})" if self.doi else ""
         pmid_part = f" PMID:{self.pmid}" if self.pmid else ""
         return f"[{author_str}. \"{self.paper_title}\"{doi_part}{pmid_part}]"
+
+    def resolved_link(self) -> str:
+        """Best available direct link to the original record, for readers who
+        want to verify a claim against the primary source themselves.
+
+        Preference order: DOI (most stable) > PMID (PubMed) > stored URL
+        (covers UniProt/PDB/AlphaFold/NCBI Gene entry pages and PDFs).
+        """
+        if self.doi:
+            return f"https://doi.org/{self.doi}"
+        if self.pmid:
+            return f"https://pubmed.ncbi.nlm.nih.gov/{self.pmid}/"
+        return self.url or ""
 
     def format_evidence_span(self) -> str:
         """Format evidence span for display."""

@@ -245,6 +245,7 @@ class TextChunker:
                 "pmcid": paper.pmcid or "",
                 "source": paper.source,
                 "date": str(paper.publication_date) if paper.publication_date else "",
+                "url": paper.url or "",
             },
             # Evidence span fields
             source_file=source_file,

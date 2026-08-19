@@ -86,6 +86,7 @@ class VectorStore:
                         "pmcid": c.metadata.get("pmcid", ""),
                         "source": c.metadata.get("source", ""),
                         "date": c.metadata.get("date", ""),
+                        "url": c.metadata.get("url", ""),
                         # Evidence span fields
                         "source_file": c.source_file,
                         "span_start": c.span_start,
@@ -157,6 +158,8 @@ class VectorStore:
                 pmcid=meta.get("pmcid", "") or None,
                 section=meta.get("section", ""),
                 relevance_score=relevance,
+                url=meta.get("url", ""),
+                source=meta.get("source", ""),
                 # Evidence span fields
                 source_file=meta.get("source_file", ""),
                 span_start=meta.get("span_start", 0),
@@ -201,6 +204,8 @@ class VectorStore:
                     "title": meta.get("title", ""),
                     "doi": meta.get("doi", ""),
                     "source": meta.get("source", ""),
+                    "url": meta.get("url", ""),
+                    "pmid": meta.get("pmid", ""),
                 }
         return list(seen.values())
 

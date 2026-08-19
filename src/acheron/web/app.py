@@ -42,6 +42,23 @@ def get_pipeline() -> RAGPipeline:
     return _pipeline
 
 
+def _source_dict(s) -> dict:
+    """Serialize a QueryResult for the API, including a direct link so a
+    reader can jump straight to the original paper / protein / structure /
+    gene record — not just the excerpt Nexus retrieved."""
+    return {
+        "text": s.text[:500],
+        "paper_title": s.paper_title,
+        "authors": s.authors,
+        "doi": s.doi,
+        "pmid": s.pmid,
+        "section": s.section,
+        "score": s.relevance_score,
+        "source": s.source,
+        "link": s.resolved_link(),
+    }
+
+
 # ======================================================================
 # API models
 # ======================================================================
@@ -101,7 +118,7 @@ async def home(request: Request):
         "total_papers": len(store.list_papers()),
         "total_chunks": store.count(),
     }
-    return templates.TemplateResponse("index.html", {"request": request, "stats": stats})
+    return templates.TemplateResponse(request, "index.html", {"stats": stats})
 
 
 # ======================================================================
@@ -137,17 +154,7 @@ async def api_query(req: QueryRequest):
         )
         return QueryResponse(
             answer="",
-            sources=[
-                {
-                    "text": r.text,
-                    "paper_title": r.paper_title,
-                    "authors": r.authors,
-                    "doi": r.doi,
-                    "section": r.section,
-                    "score": r.relevance_score,
-                }
-                for r in results
-            ],
+            sources=[_source_dict(r) for r in results],
             model_used="",
             total_chunks_searched=len(results),
         )
@@ -161,17 +168,7 @@ async def api_query(req: QueryRequest):
     )
     return QueryResponse(
         answer=response.answer,
-        sources=[
-            {
-                "text": s.text[:500],
-                "paper_title": s.paper_title,
-                "authors": s.authors,
-                "doi": s.doi,
-                "section": s.section,
-                "score": s.relevance_score,
-            }
-            for s in response.sources
-        ],
+        sources=[_source_dict(s) for s in response.sources],
         model_used=response.model_used,
         total_chunks_searched=response.total_chunks_searched,
         evidence=response.evidence_statements,
@@ -228,17 +225,7 @@ async def api_discover(req: QueryRequest):
         validation_path=result.validation_path,
         cross_species_notes=result.cross_species_notes,
         uncertainty=result.uncertainty_notes,
-        sources=[
-            {
-                "text": s.text[:500],
-                "paper_title": s.paper_title,
-                "authors": s.authors,
-                "doi": s.doi,
-                "section": s.section,
-                "score": s.relevance_score,
-            }
-            for s in result.sources
-        ],
+        sources=[_source_dict(s) for s in result.sources],
         model_used=result.model_used,
         total_chunks_searched=result.total_chunks_searched,
         # Include the actual answer for auto-routed queries
@@ -296,17 +283,7 @@ async def api_analyze(req: QueryRequest):
         "confidence": result.confidence,
         "confidence_justification": result.confidence_justification,
         "uncertainty": result.uncertainty_notes,
-        "sources": [
-            {
-                "text": s.text[:500],
-                "paper_title": s.paper_title,
-                "authors": s.authors,
-                "doi": s.doi,
-                "section": s.section,
-                "score": s.relevance_score,
-            }
-            for s in result.sources
-        ],
+        "sources": [_source_dict(s) for s in result.sources],
         "model_used": result.model_used,
         "total_chunks_searched": result.total_chunks_searched,
         "live_sources_fetched": result.live_sources_fetched,
@@ -395,7 +372,7 @@ async def api_fast(req: QueryRequest):
         "question": req.question,
         "answer": raw_output,
         "sources": [
-            {"title": r.paper_title, "doi": r.doi}
+            {"title": r.paper_title, "doi": r.doi, "link": r.resolved_link(), "source": r.source}
             for r in results
         ],
         "mode": "fast",
