@@ -1,6 +1,6 @@
 # Acheron Nexus
 
-Domain-specific RAG assistant for **bioelectricity and biomedical research**. Collects papers from PubMed, bioRxiv, arXiv, and PhysioNet, indexes them into a vector store, and answers natural-language queries with grounded, cited responses.
+Domain-specific RAG assistant for **bioelectricity and biomedical research**. Collects papers from PubMed, bioRxiv, arXiv, and PhysioNet, and grounds itself further in curated protein, structure, and genomic data from UniProt, RCSB PDB, the AlphaFold Protein Structure Database, and NCBI Gene — then indexes everything into a vector store and answers natural-language queries with grounded, cited responses.
 
 ## Focus Areas
 
@@ -10,6 +10,21 @@ Domain-specific RAG assistant for **bioelectricity and biomedical research**. Co
 - Bioelectric morphogenesis and pattern formation
 - Memory mechanisms in regenerating tissue
 - Bioelectric computing
+
+## Data Sources
+
+| Source | Kind | What it adds |
+|---|---|---|
+| PubMed / PMC | Literature | Peer-reviewed papers, full text where PMC has it |
+| bioRxiv / medRxiv | Literature | Preprints, not yet peer reviewed |
+| arXiv (q-bio) | Literature | Quantitative biology / biophysics preprints |
+| PhysioNet | Datasets | Published EEG/ECG and related signal datasets |
+| [UniProtKB](https://www.uniprot.org) | Protein | Curated function, sequence, cross-species orthologs for innexins, connexins, ion channels |
+| [RCSB PDB](https://www.rcsb.org) | Structure | Experimentally solved 3D structures (method, resolution) |
+| [AlphaFold DB](https://alphafold.ebi.ac.uk) | Structure | Free DeepMind/EMBL-EBI predicted structures + per-model confidence (pLDDT), for proteins without a solved structure |
+| [NCBI Gene](https://www.ncbi.nlm.nih.gov/gene) | Genomic | Chromosome location, RefSeq accessions, curated gene summaries |
+
+All four bio-database collectors are free and require no API key (an `NCBI_API_KEY` raises NCBI Gene's rate limit but isn't required). They follow the project's science-first rule: every fact indexed comes from the source API's own response, never invented — see `MANIFEST.md`.
 
 ## Quickstart
 
@@ -47,6 +62,8 @@ acheron serve
 | `acheron stats` | Show collection statistics |
 | `acheron serve` | Start the web interface |
 
+The web interface (`acheron serve`) has four tabs: **Query** (ask + Discover/Analyze modes), **Library** (browse/search all indexed records with a per-source breakdown), **Ledger** (past discovery/analysis runs), and **Data Sources** (what each collector is and how to pull more of it in).
+
 ## Collection Options
 
 ```bash
@@ -63,6 +80,30 @@ acheron collect -n 100
 acheron collect --download-pdfs
 ```
 
+### Bio-database collection
+
+The structural/genomic sources take gene or protein-style queries rather
+than natural-language phrases, and aren't part of `--source all` (which
+stays literature-only) since they need different query semantics:
+
+```bash
+# Protein function + sequence data (UniProtKB)
+acheron collect --source uniprot -t "innexin" -t "connexin gap junction"
+
+# Experimentally solved structures (RCSB PDB)
+acheron collect --source pdb -t "connexin gap junction channel"
+
+# Genomic context — chromosome location, RefSeq, curated summary (NCBI Gene)
+acheron collect --source ncbi_gene -t "KCNQ1" -t "GJA1"
+
+# Predicted structures (AlphaFold DB) — looked up by UniProt accession,
+# so run --source uniprot first to discover accessions, then:
+acheron collect --source alphafold -t "P17302,Q9Y6N1"
+
+# Index everything (literature + bio-databases) into the vector store
+acheron index
+```
+
 ## Architecture
 
 ```
@@ -75,7 +116,10 @@ src/acheron/
 │   ├── pubmed.py          # PubMed/PMC via NCBI E-Utilities
 │   ├── biorxiv.py         # bioRxiv content API
 │   ├── arxiv.py           # arXiv Atom feed API
-│   └── physionet.py       # PhysioNet dataset API
+│   ├── physionet.py       # PhysioNet dataset API
+│   ├── uniprot.py         # UniProtKB protein function/sequence data
+│   ├── structures.py      # RCSB PDB + AlphaFold DB structure data
+│   └── ncbi_gene.py       # NCBI Gene genomic context
 ├── extraction/
 │   ├── pdf_parser.py      # PDF → structured text (PyMuPDF + pdfplumber)
 │   └── chunker.py         # Text → overlapping chunks

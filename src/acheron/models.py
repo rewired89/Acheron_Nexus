@@ -18,6 +18,10 @@ class PaperSource(str, Enum):
     ARXIV = "arxiv"
     PHYSIONET = "physionet"
     MANUAL = "manual"
+    UNIPROT = "uniprot"
+    PDB = "pdb"
+    ALPHAFOLD = "alphafold"
+    NCBI_GENE = "ncbi_gene"
 
 
 class EpistemicTag(str, Enum):

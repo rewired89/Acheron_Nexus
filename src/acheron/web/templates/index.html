@@ -7,84 +7,156 @@
     <style>
         :root {
             --bg: #0d1117;
+            --bg-elevated: #11161d;
             --surface: #161b22;
+            --surface-hover: #1c2229;
             --border: #30363d;
             --text: #c9d1d9;
             --text-dim: #8b949e;
+            --text-faint: #6e7681;
             --accent: #58a6ff;
+            --accent-dim: #1f6feb33;
             --green: #3fb950;
             --yellow: #d29922;
             --red: #f85149;
             --purple: #d2a8ff;
+            --cyan: #79c0ff;
+            --radius: 10px;
+            --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+            --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
         body {
-            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+            font-family: var(--sans);
             background: var(--bg);
+            background-image: radial-gradient(circle at 20% 0%, #1a2230 0%, transparent 45%),
+                               radial-gradient(circle at 85% 15%, #1a1a2e 0%, transparent 40%);
+            background-attachment: fixed;
             color: var(--text);
             line-height: 1.6;
             font-size: 14px;
+            min-height: 100vh;
         }
-        .container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+        code, .mono { font-family: var(--mono); }
+        .container { max-width: 1080px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
 
+        /* ---------------- Header ---------------- */
         header {
-            text-align: center;
-            padding: 1.5rem 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1rem 0 1.25rem;
             border-bottom: 1px solid var(--border);
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.25rem;
+            flex-wrap: wrap;
         }
-        header h1 { color: var(--accent); font-size: 1.6rem; letter-spacing: 0.05em; }
-        header .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-top: 0.25rem; }
+        .brand { display: flex; align-items: baseline; gap: 0.75rem; }
+        header h1 {
+            font-family: var(--mono);
+            color: var(--accent);
+            font-size: 1.5rem;
+            letter-spacing: 0.06em;
+        }
+        header .subtitle { color: var(--text-dim); font-size: 0.82rem; }
         header .arch {
-            color: var(--text-dim);
-            font-size: 0.75rem;
-            margin-top: 0.5rem;
-            letter-spacing: 0.1em;
+            font-family: var(--mono);
+            color: var(--text-faint);
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            display: flex;
+            gap: 0.6rem;
         }
-        header .arch span { margin: 0 0.5rem; }
         .l1 { color: var(--green); }
         .l2 { color: var(--yellow); }
         .l3 { color: var(--purple); }
 
+        /* ---------------- Stats ---------------- */
         .stats-bar {
-            display: flex;
-            gap: 1.5rem;
-            justify-content: center;
-            margin-bottom: 1.5rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
         }
         .stat {
             background: var(--surface);
-            padding: 0.5rem 1.2rem;
-            border-radius: 6px;
+            padding: 0.7rem 1rem;
+            border-radius: var(--radius);
             border: 1px solid var(--border);
             text-align: center;
         }
-        .stat-value { font-size: 1.3rem; font-weight: bold; color: var(--green); }
-        .stat-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-value { font-family: var(--mono); font-size: 1.35rem; font-weight: 600; color: var(--green); }
+        .stat-label { font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.15rem; }
 
+        .source-mix {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 0.85rem 1rem;
+            margin-bottom: 1.25rem;
+        }
+        .source-mix h4 {
+            font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em;
+            color: var(--text-dim); margin-bottom: 0.6rem; font-weight: 600;
+        }
+        .source-row { display: flex; align-items: center; gap: 0.6rem; font-size: 0.78rem; margin-bottom: 0.3rem; }
+        .source-row .name { width: 92px; flex-shrink: 0; color: var(--text-dim); font-family: var(--mono); }
+        .source-row .bar-track { flex: 1; background: var(--bg); border-radius: 4px; overflow: hidden; height: 8px; }
+        .source-row .bar-fill { height: 100%; border-radius: 4px; }
+        .source-row .count { width: 32px; text-align: right; color: var(--text-faint); font-family: var(--mono); }
+        .source-mix .empty { color: var(--text-faint); font-size: 0.8rem; }
+
+        /* ---------------- Tabs ---------------- */
+        .tabs {
+            display: flex;
+            gap: 0.25rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1.25rem;
+            overflow-x: auto;
+        }
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            padding: 0.55rem 0.9rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            white-space: nowrap;
+            font-family: var(--sans);
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; animation: fadein 0.15s ease; }
+        @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+        /* ---------------- Query section ---------------- */
         .query-section {
             background: var(--surface);
-            padding: 1.25rem;
-            border-radius: 8px;
+            padding: 1.1rem;
+            border-radius: var(--radius);
             border: 1px solid var(--border);
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.25rem;
         }
         .query-input {
             width: 100%;
-            padding: 0.6rem 0.8rem;
+            padding: 0.65rem 0.8rem;
             background: var(--bg);
             border: 1px solid var(--border);
             border-radius: 6px;
             color: var(--text);
-            font-family: inherit;
-            font-size: 0.9rem;
+            font-family: var(--sans);
+            font-size: 0.92rem;
             resize: vertical;
-            min-height: 50px;
+            min-height: 56px;
         }
         .query-input:focus { outline: none; border-color: var(--accent); }
         .controls {
             display: flex;
-            gap: 0.75rem;
+            gap: 0.6rem;
             margin-top: 0.75rem;
             align-items: center;
             flex-wrap: wrap;
@@ -93,29 +165,27 @@
             background: var(--accent);
             color: #fff;
             border: none;
-            padding: 0.5rem 1.2rem;
-            border-radius: 4px;
+            padding: 0.5rem 1.1rem;
+            border-radius: 6px;
             font-size: 0.8rem;
             cursor: pointer;
             font-weight: 600;
-            font-family: inherit;
+            font-family: var(--sans);
+            transition: opacity 0.1s;
         }
-        button:hover { opacity: 0.9; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        button.secondary {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text);
-        }
+        button:hover { opacity: 0.88; }
+        button:disabled { opacity: 0.45; cursor: not-allowed; }
+        button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
         button.discover { background: var(--purple); }
+        button.analyze { background: var(--cyan); color: #05233f; }
 
-        select {
+        select, input[type="text"] {
             background: var(--bg);
             color: var(--text);
             border: 1px solid var(--border);
-            padding: 0.4rem;
-            border-radius: 4px;
-            font-family: inherit;
+            padding: 0.45rem 0.5rem;
+            border-radius: 6px;
+            font-family: var(--sans);
             font-size: 0.8rem;
         }
 
@@ -124,174 +194,323 @@
         .section-box {
             background: var(--surface);
             padding: 1rem;
-            border-radius: 8px;
+            border-radius: var(--radius);
             border-left: 3px solid var(--border);
             margin-bottom: 1rem;
         }
         .section-box h3 {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             text-transform: uppercase;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.09em;
             margin-bottom: 0.5rem;
+            font-weight: 700;
         }
-        .section-box.evidence { border-left-color: var(--green); }
-        .section-box.evidence h3 { color: var(--green); }
-        .section-box.inference { border-left-color: var(--yellow); }
-        .section-box.inference h3 { color: var(--yellow); }
-        .section-box.speculation { border-left-color: var(--red); }
-        .section-box.speculation h3 { color: var(--red); }
-        .section-box.uncertainty { border-left-color: var(--text-dim); }
-        .section-box.uncertainty h3 { color: var(--text-dim); }
-        .section-box.variables { border-left-color: var(--accent); }
-        .section-box.variables h3 { color: var(--accent); }
-        .section-box.hypotheses { border-left-color: var(--purple); }
-        .section-box.hypotheses h3 { color: var(--purple); }
-        .section-box.schematic { border-left-color: #d2a8ff; }
-        .section-box.schematic h3 { color: #d2a8ff; }
-        .section-box.validation { border-left-color: var(--accent); }
-        .section-box.validation h3 { color: var(--accent); }
-        .section-box.crossspecies { border-left-color: #79c0ff; }
-        .section-box.crossspecies h3 { color: #79c0ff; }
+        .section-box.evidence { border-left-color: var(--green); } .section-box.evidence h3 { color: var(--green); }
+        .section-box.inference { border-left-color: var(--yellow); } .section-box.inference h3 { color: var(--yellow); }
+        .section-box.speculation { border-left-color: var(--red); } .section-box.speculation h3 { color: var(--red); }
+        .section-box.uncertainty { border-left-color: var(--text-dim); } .section-box.uncertainty h3 { color: var(--text-dim); }
+        .section-box.variables { border-left-color: var(--accent); } .section-box.variables h3 { color: var(--accent); }
+        .section-box.hypotheses { border-left-color: var(--purple); } .section-box.hypotheses h3 { color: var(--purple); }
+        .section-box.schematic { border-left-color: var(--purple); } .section-box.schematic h3 { color: var(--purple); }
+        .section-box.validation { border-left-color: var(--accent); } .section-box.validation h3 { color: var(--accent); }
+        .section-box.crossspecies { border-left-color: var(--cyan); } .section-box.crossspecies h3 { color: var(--cyan); }
 
         .section-box ul { list-style: none; padding: 0; }
-        .section-box li { padding: 0.2rem 0; padding-left: 1rem; position: relative; }
-        .section-box li::before { content: '-'; position: absolute; left: 0; color: var(--text-dim); }
+        .section-box li { padding: 0.22rem 0; padding-left: 1rem; position: relative; }
+        .section-box li::before { content: '\2013'; position: absolute; left: 0; color: var(--text-dim); }
 
         .answer-raw {
             background: var(--surface);
             padding: 1rem;
-            border-radius: 8px;
+            border-radius: var(--radius);
             border: 1px solid var(--border);
             margin-bottom: 1rem;
             white-space: pre-wrap;
-            line-height: 1.7;
+            line-height: 1.75;
         }
+        .answer-raw strong { color: var(--accent); }
 
-        .sources-box {
-            background: var(--surface);
-            padding: 1rem;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-        }
-        .sources-box h3 {
-            color: var(--green);
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 0.5rem;
-        }
-        .source-item {
-            padding: 0.5rem 0;
-            border-bottom: 1px solid var(--border);
-            font-size: 0.85rem;
-        }
+        .sources-box { background: var(--surface); padding: 1rem; border-radius: var(--radius); border: 1px solid var(--border); }
+        .sources-box h3 { color: var(--green); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 0.5rem; }
+        .source-item { padding: 0.55rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
         .source-item:last-child { border-bottom: none; }
         .source-title { color: var(--accent); }
-        .source-meta { color: var(--text-dim); font-size: 0.75rem; }
-        .source-text { color: var(--text-dim); font-size: 0.8rem; margin-top: 0.25rem; }
+        .source-meta { color: var(--text-dim); font-size: 0.74rem; }
+        .source-tag {
+            display: inline-block; font-family: var(--mono); font-size: 0.62rem;
+            padding: 0.05rem 0.35rem; border-radius: 4px; background: var(--bg);
+            border: 1px solid var(--border); color: var(--text-faint); margin-right: 0.35rem;
+        }
+        .source-text { color: var(--text-dim); font-size: 0.8rem; margin-top: 0.3rem; }
         .score { color: var(--green); }
-        .conf-high { color: var(--green); }
-        .conf-medium { color: var(--yellow); }
-        .conf-low { color: var(--red); }
+        .conf-high { color: var(--green); } .conf-medium { color: var(--yellow); } .conf-low { color: var(--red); }
 
-        .var-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        .var-table th { text-align: left; color: var(--text-dim); padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--border); }
-        .var-table td { padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--border); }
+        .var-table, .lib-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .var-table th, .lib-table th { text-align: left; color: var(--text-dim); padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+        .var-table td, .lib-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border); }
+        .lib-table tr:hover td { background: var(--surface-hover); }
 
-        .hyp-item { padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+        .hyp-item { padding: 0.55rem 0; border-bottom: 1px solid var(--border); }
         .hyp-item:last-child { border-bottom: none; }
         .hyp-meta { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.25rem; }
 
-        .upload-section {
-            background: var(--surface);
-            padding: 1rem;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            margin-top: 1.5rem;
-        }
-        .upload-section h3 { color: var(--green); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+        .upload-section { background: var(--surface); padding: 1rem; border-radius: var(--radius); border: 1px solid var(--border); margin-top: 1.25rem; }
+        .upload-section h3 { color: var(--green); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 0.75rem; }
         .upload-form { display: flex; flex-direction: column; gap: 0.5rem; }
         .upload-form input[type="text"], .upload-form input[type="file"] {
-            background: var(--bg);
-            color: var(--text);
-            border: 1px solid var(--border);
-            padding: 0.4rem;
-            border-radius: 4px;
-            font-family: inherit;
-            font-size: 0.85rem;
+            background: var(--bg); color: var(--text); border: 1px solid var(--border);
+            padding: 0.45rem; border-radius: 6px; font-family: var(--sans); font-size: 0.85rem;
         }
 
         .loading { text-align: center; padding: 2rem; color: var(--text-dim); }
-        .meta-line { color: var(--text-dim); font-size: 0.75rem; margin-top: 0.75rem; }
+        .meta-line { color: var(--text-dim); font-size: 0.73rem; margin-top: 0.75rem; font-family: var(--mono); }
+
+        /* ---------------- Library tab ---------------- */
+        .lib-toolbar { display: flex; gap: 0.6rem; margin-bottom: 0.9rem; flex-wrap: wrap; }
+        .lib-toolbar input[type="text"] { flex: 1; min-width: 180px; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
+        .empty-state { color: var(--text-faint); text-align: center; padding: 2.5rem 1rem; font-size: 0.88rem; }
+
+        /* ---------------- Sources info tab ---------------- */
+        .source-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.9rem; }
+        .source-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.95rem; }
+        .source-card .badge {
+            display: inline-block; font-family: var(--mono); font-size: 0.68rem; font-weight: 700;
+            padding: 0.15rem 0.5rem; border-radius: 5px; margin-bottom: 0.5rem;
+        }
+        .source-card h4 { font-size: 0.92rem; margin-bottom: 0.35rem; }
+        .source-card p { color: var(--text-dim); font-size: 0.8rem; margin-bottom: 0.5rem; }
+        .source-card code { font-size: 0.72rem; color: var(--text-faint); display: block; word-break: break-all; }
+        .source-card a { color: var(--accent); text-decoration: none; font-size: 0.76rem; }
+        .source-card a:hover { text-decoration: underline; }
+
+        ::-webkit-scrollbar { height: 8px; width: 8px; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>NEXUS</h1>
-            <div class="subtitle">System-2 Bioelectric Research Engine</div>
+            <div class="brand">
+                <h1>NEXUS</h1>
+                <div>
+                    <div class="subtitle">System-2 Bioelectric Research Engine</div>
+                </div>
+            </div>
             <div class="arch">
-                <span class="l1">KNOWLEDGE</span> |
-                <span class="l2">SYNTHESIS</span> |
-                <span class="l3">DISCOVERY</span>
+                <span class="l1">KNOWLEDGE</span>&middot;<span class="l2">SYNTHESIS</span>&middot;<span class="l3">DISCOVERY</span>
             </div>
         </header>
 
         <div class="stats-bar">
-            <div class="stat">
-                <div class="stat-value" id="paper-count">{{ stats.total_papers }}</div>
-                <div class="stat-label">Library</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value" id="chunk-count">{{ stats.total_chunks }}</div>
-                <div class="stat-label">Index</div>
-            </div>
+            <div class="stat"><div class="stat-value" id="paper-count">{{ stats.total_papers }}</div><div class="stat-label">Library</div></div>
+            <div class="stat"><div class="stat-value" id="chunk-count">{{ stats.total_chunks }}</div><div class="stat-label">Index</div></div>
+            <div class="stat"><div class="stat-value" id="ledger-count">&mdash;</div><div class="stat-label">Ledger</div></div>
+            <div class="stat"><div class="stat-value" id="source-count">&mdash;</div><div class="stat-label">Sources</div></div>
         </div>
 
-        <div class="query-section">
-            <textarea class="query-input" id="query-input"
-                placeholder="Query the bioelectricity corpus..."></textarea>
-            <div class="controls">
-                <button id="ask-btn" onclick="submitQuery()">Query</button>
-                <button class="discover" onclick="submitDiscover()">Discover</button>
-                <button class="secondary" onclick="submitQuery(true)">Retrieve Only</button>
-                <select id="source-filter">
+        <div class="source-mix" id="source-mix">
+            <h4>Corpus mix by source</h4>
+            <div id="source-mix-body" class="empty">Loading&hellip;</div>
+        </div>
+
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="query">Query</button>
+            <button class="tab-btn" data-tab="library">Library</button>
+            <button class="tab-btn" data-tab="ledger">Ledger</button>
+            <button class="tab-btn" data-tab="sources">Data Sources</button>
+        </nav>
+
+        <!-- ============ QUERY TAB ============ -->
+        <section class="tab-panel active" id="tab-query">
+            <div class="query-section">
+                <textarea class="query-input" id="query-input"
+                    placeholder="Query the bioelectricity + structural/genomic corpus..."></textarea>
+                <div class="controls">
+                    <button id="ask-btn" onclick="submitQuery()">Query</button>
+                    <button class="discover" onclick="submitDiscover()">Discover</button>
+                    <button class="analyze" onclick="submitAnalyze()">Analyze</button>
+                    <button class="secondary" onclick="submitQuery(true)">Retrieve Only</button>
+                    <select id="source-filter">
+                        <option value="">All Sources</option>
+                        <option value="pubmed">PubMed</option>
+                        <option value="biorxiv">bioRxiv</option>
+                        <option value="arxiv">arXiv</option>
+                        <option value="physionet">PhysioNet</option>
+                        <option value="uniprot">UniProt</option>
+                        <option value="pdb">PDB</option>
+                        <option value="alphafold">AlphaFold DB</option>
+                        <option value="ncbi_gene">NCBI Gene</option>
+                        <option value="manual">Manual</option>
+                    </select>
+                </div>
+            </div>
+            <div id="results"></div>
+        </section>
+
+        <!-- ============ LIBRARY TAB ============ -->
+        <section class="tab-panel" id="tab-library">
+            <div class="lib-toolbar">
+                <input type="text" id="lib-search" placeholder="Filter by title, DOI, or ID&hellip;" oninput="renderLibrary()">
+                <select id="lib-source-filter" onchange="renderLibrary()">
                     <option value="">All Sources</option>
-                    <option value="pubmed">PubMed</option>
-                    <option value="biorxiv">bioRxiv</option>
-                    <option value="arxiv">arXiv</option>
-                    <option value="physionet">PhysioNet</option>
-                    <option value="manual">Manual</option>
                 </select>
             </div>
-        </div>
+            <div class="card" id="library-body"><div class="empty-state">Loading library&hellip;</div></div>
 
-        <div id="results"></div>
+            <div class="upload-section">
+                <h3>Add to Library</h3>
+                <form class="upload-form" id="upload-form" onsubmit="uploadPaper(event)">
+                    <input type="file" name="file" accept=".pdf" required>
+                    <input type="text" name="title" placeholder="Title (optional)">
+                    <input type="text" name="doi" placeholder="DOI (optional)">
+                    <input type="text" name="authors" placeholder="Authors, comma-separated (optional)">
+                    <button type="submit">Upload PDF</button>
+                </form>
+                <div id="upload-status"></div>
+            </div>
+        </section>
 
-        <div class="upload-section">
-            <h3>Add to Library</h3>
-            <form class="upload-form" id="upload-form" onsubmit="uploadPaper(event)">
-                <input type="file" name="file" accept=".pdf" required>
-                <input type="text" name="title" placeholder="Title (optional)">
-                <input type="text" name="doi" placeholder="DOI (optional)">
-                <input type="text" name="authors" placeholder="Authors, comma-separated (optional)">
-                <button type="submit">Upload</button>
-            </form>
-            <div id="upload-status"></div>
-        </div>
+        <!-- ============ LEDGER TAB ============ -->
+        <section class="tab-panel" id="tab-ledger">
+            <div class="card" id="ledger-body"><div class="empty-state">Loading ledger&hellip;</div></div>
+        </section>
+
+        <!-- ============ DATA SOURCES TAB ============ -->
+        <section class="tab-panel" id="tab-sources">
+            <div class="source-grid">
+                <div class="source-card">
+                    <span class="badge" style="background:#1f6feb33;color:#58a6ff;">LITERATURE</span>
+                    <h4>PubMed / PMC</h4>
+                    <p>Peer-reviewed biomedical literature via NCBI E-Utilities, with full text when available through PubMed Central.</p>
+                    <a href="https://pubmed.ncbi.nlm.nih.gov" target="_blank" rel="noopener">pubmed.ncbi.nlm.nih.gov &#8599;</a>
+                </div>
+                <div class="source-card">
+                    <span class="badge" style="background:#1f6feb33;color:#58a6ff;">LITERATURE</span>
+                    <h4>bioRxiv / medRxiv</h4>
+                    <p>Preprints in biology and medicine &mdash; not yet peer reviewed. Useful for the newest findings, flagged accordingly.</p>
+                    <a href="https://www.biorxiv.org" target="_blank" rel="noopener">biorxiv.org &#8599;</a>
+                </div>
+                <div class="source-card">
+                    <span class="badge" style="background:#1f6feb33;color:#58a6ff;">LITERATURE</span>
+                    <h4>arXiv (q-bio)</h4>
+                    <p>Quantitative biology and biophysics preprints &mdash; modeling, information theory, computational approaches.</p>
+                    <a href="https://arxiv.org/list/q-bio/recent" target="_blank" rel="noopener">arxiv.org/q-bio &#8599;</a>
+                </div>
+                <div class="source-card">
+                    <span class="badge" style="background:#1f6feb33;color:#58a6ff;">DATASETS</span>
+                    <h4>PhysioNet</h4>
+                    <p>Published physiological signal datasets (EEG, ECG and related time-series) for electrophysiology grounding.</p>
+                    <a href="https://physionet.org" target="_blank" rel="noopener">physionet.org &#8599;</a>
+                </div>
+                <div class="source-card">
+                    <span class="badge" style="background:#3fb95033;color:#3fb950;">PROTEIN</span>
+                    <h4>UniProtKB</h4>
+                    <p>Curated protein function, sequence, and cross-species orthologs &mdash; used for innexins, connexins, and voltage-gated ion channels.</p>
+                    <a href="https://www.uniprot.org" target="_blank" rel="noopener">uniprot.org &#8599;</a>
+                </div>
+                <div class="source-card">
+                    <span class="badge" style="background:#3fb95033;color:#3fb950;">STRUCTURE</span>
+                    <h4>RCSB PDB</h4>
+                    <p>Experimentally determined 3D protein structures (X-ray, cryo-EM, NMR) with method and resolution metadata.</p>
+                    <a href="https://www.rcsb.org" target="_blank" rel="noopener">rcsb.org &#8599;</a>
+                </div>
+                <div class="source-card">
+                    <span class="badge" style="background:#d2a8ff33;color:#d2a8ff;">STRUCTURE</span>
+                    <h4>AlphaFold DB</h4>
+                    <p>Free predicted structure models (DeepMind / EMBL-EBI) for proteins lacking a solved experimental structure, with per-model confidence (pLDDT).</p>
+                    <a href="https://alphafold.ebi.ac.uk" target="_blank" rel="noopener">alphafold.ebi.ac.uk &#8599;</a>
+                </div>
+                <div class="source-card">
+                    <span class="badge" style="background:#d2992233;color:#d29922;">GENOMIC</span>
+                    <h4>NCBI Gene</h4>
+                    <p>Chromosome location, RefSeq accessions, and curated gene summaries &mdash; genomic/DNA-level context for genes of interest.</p>
+                    <a href="https://www.ncbi.nlm.nih.gov/gene" target="_blank" rel="noopener">ncbi.nlm.nih.gov/gene &#8599;</a>
+                </div>
+            </div>
+            <div class="section-box uncertainty" style="margin-top:1.25rem;">
+                <h3>How to pull in new data</h3>
+                <p style="color:var(--text-dim);font-size:0.85rem;">
+                    Run from the CLI &mdash; e.g. <code class="mono">acheron collect --source uniprot -t "innexin"</code>,
+                    then <code class="mono">acheron collect --source pdb -t "connexin gap junction"</code>,
+                    then <code class="mono">acheron index</code> to embed the new records into this corpus.
+                    See the README for the full command reference.
+                </p>
+            </div>
+        </section>
     </div>
 
     <script>
+        const SOURCE_COLORS = {
+            pubmed: '#58a6ff', biorxiv: '#79c0ff', arxiv: '#79c0ff', physionet: '#58a6ff',
+            uniprot: '#3fb950', pdb: '#3fb950', alphafold: '#d2a8ff', ncbi_gene: '#d29922',
+            manual: '#8b949e'
+        };
+
         const resultsDiv = document.getElementById('results');
         const queryInput = document.getElementById('query-input');
+        let allPapers = [];
 
         queryInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                submitQuery();
-            }
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitQuery(); }
         });
 
+        // ---------------- Tabs ----------------
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+                if (btn.dataset.tab === 'library' && allPapers.length === 0) loadLibrary();
+                if (btn.dataset.tab === 'ledger') loadLedger();
+            });
+        });
+
+        // ---------------- Stats + source mix ----------------
+        async function loadStats() {
+            try {
+                const stats = await (await fetch('/api/stats')).json();
+                document.getElementById('paper-count').textContent = stats.total_papers;
+                document.getElementById('chunk-count').textContent = stats.total_chunks;
+                document.getElementById('ledger-count').textContent = stats.ledger_entries;
+                const bySource = stats.papers_by_source || {};
+                document.getElementById('source-count').textContent = Object.keys(bySource).length;
+                renderSourceMix(bySource);
+                populateLibSourceFilter(bySource);
+            } catch (err) {
+                document.getElementById('source-mix-body').innerHTML = '<div class="empty">Stats unavailable.</div>';
+            }
+        }
+
+        function renderSourceMix(bySource) {
+            const el = document.getElementById('source-mix-body');
+            const entries = Object.entries(bySource).sort((a, b) => b[1] - a[1]);
+            if (!entries.length) { el.innerHTML = '<div class="empty">No papers indexed yet. Run `acheron collect` then `acheron index`.</div>'; return; }
+            const max = Math.max(...entries.map(e => e[1]));
+            el.innerHTML = entries.map(([src, count]) => {
+                const pct = Math.max(4, Math.round((count / max) * 100));
+                const color = SOURCE_COLORS[src] || '#8b949e';
+                return '<div class="source-row">' +
+                    '<div class="name">' + esc(src) + '</div>' +
+                    '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + color + ';"></div></div>' +
+                    '<div class="count">' + count + '</div></div>';
+            }).join('');
+        }
+
+        function populateLibSourceFilter(bySource) {
+            const sel = document.getElementById('lib-source-filter');
+            const existing = new Set(Array.from(sel.options).map(o => o.value));
+            Object.keys(bySource).sort().forEach(src => {
+                if (!existing.has(src)) {
+                    const opt = document.createElement('option');
+                    opt.value = src; opt.textContent = src;
+                    sel.appendChild(opt);
+                }
+            });
+        }
+
+        // ---------------- Query / Discover / Analyze ----------------
         function getParams() {
             return {
                 question: queryInput.value.trim(),
@@ -304,15 +523,11 @@
             const p = getParams();
             if (!p.question) return;
             p.retrieve_only = retrieveOnly;
-
-            resultsDiv.innerHTML = '<div class="loading">Retrieving from Index...</div>';
+            resultsDiv.innerHTML = '<div class="loading">Retrieving from Index&hellip;</div>';
             try {
-                const resp = await fetch('/api/query', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(p)
-                });
+                const resp = await fetch('/api/query', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(p) });
                 const data = await resp.json();
+                if (!resp.ok) { renderError(data); return; }
                 renderQueryResults(data, retrieveOnly);
             } catch (err) {
                 resultsDiv.innerHTML = '<div class="answer-raw" style="color:var(--red)">Error: ' + esc(err.message) + '</div>';
@@ -322,156 +537,232 @@
         async function submitDiscover() {
             const p = getParams();
             if (!p.question) return;
-
-            resultsDiv.innerHTML = '<div class="loading">Executing discovery loop (Discovery layer)...</div>';
+            resultsDiv.innerHTML = '<div class="loading">Executing discovery loop (Discovery layer)&hellip;</div>';
             try {
-                const resp = await fetch('/api/discover', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(p)
-                });
+                const resp = await fetch('/api/discover', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(p) });
                 const data = await resp.json();
+                if (!resp.ok) { renderError(data); return; }
                 renderDiscoverResults(data);
+                loadStats();
             } catch (err) {
                 resultsDiv.innerHTML = '<div class="answer-raw" style="color:var(--red)">Error: ' + esc(err.message) + '</div>';
             }
         }
 
+        async function submitAnalyze() {
+            const p = getParams();
+            if (!p.question) return;
+            resultsDiv.innerHTML = '<div class="loading">Running Evidence-Bound Hypothesis Engine&hellip;</div>';
+            try {
+                const resp = await fetch('/api/analyze', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(p) });
+                const data = await resp.json();
+                if (!resp.ok) { renderError(data); return; }
+                renderAnalyzeResults(data);
+                loadStats();
+            } catch (err) {
+                resultsDiv.innerHTML = '<div class="answer-raw" style="color:var(--red)">Error: ' + esc(err.message) + '</div>';
+            }
+        }
+
+        function renderError(data) {
+            resultsDiv.innerHTML = '<div class="answer-raw" style="color:var(--red)">' +
+                esc(data.detail || data.error || 'Request failed') +
+                (data.hint ? '<div class="meta-line">' + esc(data.hint) + '</div>' : '') + '</div>';
+        }
+
         function renderQueryResults(data, retrieveOnly) {
             let html = '';
-            const hasStructured = (data.evidence && data.evidence.length) ||
-                                  (data.inference && data.inference.length) ||
-                                  (data.speculation && data.speculation.length);
-
+            const hasStructured = (data.evidence && data.evidence.length) || (data.inference && data.inference.length) || (data.speculation && data.speculation.length);
             if (!retrieveOnly && hasStructured) {
-                if (data.evidence && data.evidence.length) {
-                    html += renderSection('evidence', 'EVIDENCE', data.evidence);
-                }
-                if (data.inference && data.inference.length) {
-                    html += renderSection('inference', 'INFERENCE', data.inference);
-                }
-                if (data.speculation && data.speculation.length) {
-                    html += renderSection('speculation', 'SPECULATION', data.speculation);
-                }
-                if (data.bioelectric_schematic) {
-                    html += '<div class="section-box schematic"><h3>BIOELECTRIC SCHEMATIC</h3>' +
-                        '<pre style="white-space:pre-wrap;color:var(--text);">' + esc(data.bioelectric_schematic) + '</pre></div>';
-                }
+                if (data.evidence && data.evidence.length) html += renderSection('evidence', 'EVIDENCE', data.evidence);
+                if (data.inference && data.inference.length) html += renderSection('inference', 'INFERENCE', data.inference);
+                if (data.speculation && data.speculation.length) html += renderSection('speculation', 'SPECULATION', data.speculation);
+                if (data.bioelectric_schematic) html += schematicBox(data.bioelectric_schematic);
             } else if (!retrieveOnly && data.answer) {
-                html += '<div class="answer-raw">' + esc(data.answer) + '</div>';
+                html += '<div class="answer-raw">' + formatAnswer(data.answer) + '</div>';
             }
-
             html += renderSources(data.sources);
-            if (data.model_used) {
-                html += '<div class="meta-line">Discovery: ' + esc(data.model_used) + ' | Synthesis: ' + data.total_chunks_searched + ' chunks</div>';
-            }
-
+            if (data.model_used) html += '<div class="meta-line">Discovery: ' + esc(data.model_used) + ' | Synthesis: ' + data.total_chunks_searched + ' chunks</div>';
             resultsDiv.innerHTML = html || '<div class="answer-raw">No results.</div>';
         }
 
         function renderDiscoverResults(data) {
             let html = '';
-
-            if (data.evidence && data.evidence.length) {
-                html += renderSection('evidence', '1. EVIDENCE EXTRACTION', data.evidence);
-            }
+            if (data.evidence && data.evidence.length) html += renderSection('evidence', '1. EVIDENCE EXTRACTION', data.evidence);
             if (data.variables && data.variables.length) {
-                html += '<div class="section-box variables"><h3>2. BIOELECTRIC VARIABLES</h3>' +
-                    '<table class="var-table"><tr><th>Name</th><th>Value</th><th>Unit</th><th>Type</th><th>Src</th></tr>';
-                data.variables.forEach(function(v) {
-                    html += '<tr><td>' + esc(v.name) + '</td><td>' + esc(v.value) + '</td><td>' + esc(v.unit) + '</td><td>' + esc(v.type || '') + '</td><td>' + esc(v.source_ref) + '</td></tr>';
-                });
+                html += '<div class="section-box variables"><h3>2. BIOELECTRIC VARIABLES</h3><table class="var-table"><tr><th>Name</th><th>Value</th><th>Unit</th><th>Type</th><th>Src</th></tr>';
+                data.variables.forEach(v => { html += '<tr><td>' + esc(v.name) + '</td><td>' + esc(v.value) + '</td><td>' + esc(v.unit) + '</td><td>' + esc(v.type || '') + '</td><td>' + esc(v.source_ref) + '</td></tr>'; });
                 html += '</table></div>';
             }
-            if (data.inference && data.inference.length) {
-                html += renderSection('inference', '3. PATTERN COMPARISON', data.inference);
-            }
+            if (data.inference && data.inference.length) html += renderSection('inference', '3. PATTERN COMPARISON', data.inference);
             if (data.hypotheses && data.hypotheses.length) {
                 html += '<div class="section-box hypotheses"><h3>4. HYPOTHESES</h3>';
-                data.hypotheses.forEach(function(h) {
-                    var confClass = 'conf-' + (h.confidence || 'low');
-                    html += '<div class="hyp-item">' +
-                        '<div class="hyp-statement">' + esc(h.statement) + '</div>' +
-                        '<div class="hyp-meta">' +
-                        'Prior Confidence: <span class="' + confClass + '">' + esc(h.confidence) + '</span>' +
+                data.hypotheses.forEach(h => {
+                    const confClass = 'conf-' + (h.confidence || 'low');
+                    html += '<div class="hyp-item"><div class="hyp-statement">' + esc(h.statement) + '</div><div class="hyp-meta">Prior Confidence: <span class="' + confClass + '">' + esc(h.confidence) + '</span>' +
                         (h.predicted_impact ? ' | Predicted Impact: ' + esc(h.predicted_impact) : '') +
-                        (h.validation ? ' | Validation: ' + esc(h.validation) : '') +
-                        '</div>' +
-                        (h.assumptions && h.assumptions.length ? '<div class="hyp-meta">Assumptions: ' + h.assumptions.map(esc).join('; ') + '</div>' : '') +
-                    '</div>';
+                        (h.validation ? ' | Validation: ' + esc(h.validation) : '') + '</div>' +
+                        (h.assumptions && h.assumptions.length ? '<div class="hyp-meta">Assumptions: ' + h.assumptions.map(esc).join('; ') + '</div>' : '') + '</div>';
                 });
                 html += '</div>';
             }
-            if (data.bioelectric_schematic) {
-                html += '<div class="section-box schematic"><h3>5. BIOELECTRIC SCHEMATIC</h3>' +
-                    '<pre style="white-space:pre-wrap;color:var(--text);">' + esc(data.bioelectric_schematic) + '</pre></div>';
-            }
-            if (data.validation_path && data.validation_path.length) {
-                html += renderSection('validation', '6. VALIDATION PATH', data.validation_path);
-            }
-            if (data.cross_species_notes && data.cross_species_notes.length) {
-                html += renderSection('crossspecies', '7. CROSS-SPECIES NOTES', data.cross_species_notes);
-            }
-            if (data.speculation && data.speculation.length) {
-                html += renderSection('speculation', 'SPECULATION', data.speculation);
-            }
-            if (data.uncertainty && data.uncertainty.length) {
-                html += renderSection('uncertainty', '8. UNCERTAINTY', data.uncertainty);
-            }
-
+            if (data.bioelectric_schematic) html += schematicBox(data.bioelectric_schematic, '5. BIOELECTRIC SCHEMATIC');
+            if (data.validation_path && data.validation_path.length) html += renderSection('validation', '6. VALIDATION PATH', data.validation_path);
+            if (data.cross_species_notes && data.cross_species_notes.length) html += renderSection('crossspecies', '7. CROSS-SPECIES NOTES', data.cross_species_notes);
+            if (data.speculation && data.speculation.length) html += renderSection('speculation', 'SPECULATION', data.speculation);
+            if (data.uncertainty && data.uncertainty.length) html += renderSection('uncertainty', '8. UNCERTAINTY', data.uncertainty);
             html += renderSources(data.sources);
             html += '<div class="meta-line">Discovery: ' + esc(data.model_used) + ' | Synthesis: ' + data.total_chunks_searched + ' chunks | Logged to ledger</div>';
-
             resultsDiv.innerHTML = html || '<div class="answer-raw">No results.</div>';
         }
 
+        function renderAnalyzeResults(data) {
+            let html = '<div class="meta-line" style="margin-bottom:0.5rem;">MODE: ' + esc((data.mode || '').toUpperCase()) +
+                (data.live_sources_fetched ? ' | Live sources: ' + data.live_sources_fetched : '') + '</div>';
+
+            const claims = (data.evidence_graph && data.evidence_graph.claims) || [];
+            if (claims.length) {
+                html += '<div class="section-box evidence"><h3>EVIDENCE CLAIMS</h3><table class="var-table"><tr><th>Claim</th><th>Status</th><th>Agreement</th><th>Refs</th></tr>';
+                claims.forEach(c => {
+                    const claimText = (c.subject + ' ' + c.predicate + ' ' + c.object).trim() || c.claim_id;
+                    html += '<tr><td>' + esc(claimText) + '</td><td>' + esc(c.status) + '</td><td>' + (c.agreement_score || 0).toFixed(2) + '</td><td>' + esc((c.source_refs || []).join(', ')) + '</td></tr>';
+                });
+                html += '</table></div>';
+            }
+
+            (data.hypotheses || []).forEach(h => {
+                const confClass = h.confidence >= 70 ? 'conf-high' : h.confidence >= 40 ? 'conf-medium' : 'conf-low';
+                html += '<div class="section-box hypotheses"><h3>' + esc(h.id) + ' (rank #' + h.rank + ') — <span class="' + confClass + '">' + h.confidence + '/100</span></h3>';
+                html += '<div class="answer-raw" style="margin:0 0 0.5rem;">' + esc(h.statement) + '</div>';
+                html += '<div class="hyp-meta">IBE: explanatory=' + h.explanatory_power.toFixed(1) + ' simplicity=' + h.simplicity.toFixed(1) +
+                    ' consistency=' + h.consistency.toFixed(1) + ' mechanistic=' + h.mechanistic_plausibility.toFixed(1) + ' → overall=' + h.overall_score.toFixed(2) + '</div>';
+                if (h.rationale) html += '<div class="hyp-meta">Rationale: ' + esc(h.rationale) + '</div>';
+                if (h.predictions && h.predictions.length) html += renderSection('evidence', 'Predictions if true', h.predictions);
+                if (h.falsifiers && h.falsifiers.length) html += renderSection('speculation', 'Falsifiers', h.falsifiers);
+                if (h.minimal_test) html += '<div class="hyp-meta">Minimal test: ' + esc(h.minimal_test) + '</div>';
+                html += '</div>';
+            });
+
+            if (data.next_queries && data.next_queries.length) html += renderSection('validation', 'NEXT BEST EVIDENCE', data.next_queries);
+            if (data.uncertainty && data.uncertainty.length) html += renderSection('uncertainty', 'UNCERTAINTY', data.uncertainty);
+            html += renderSources(data.sources);
+            const confClass = data.confidence >= 70 ? 'conf-high' : data.confidence >= 40 ? 'conf-medium' : 'conf-low';
+            html += '<div class="meta-line">Overall confidence: <span class="' + confClass + '">' + data.confidence + '/100</span> | Model: ' + esc(data.model_used) + ' | Chunks: ' + data.total_chunks_searched + '</div>';
+            resultsDiv.innerHTML = html || '<div class="answer-raw">No results.</div>';
+        }
+
+        function schematicBox(text, title) {
+            return '<div class="section-box schematic"><h3>' + esc(title || 'BIOELECTRIC SCHEMATIC') + '</h3>' +
+                '<pre style="white-space:pre-wrap;color:var(--text);font-family:inherit;">' + esc(text) + '</pre></div>';
+        }
+
         function renderSection(cls, title, items) {
-            var html = '<div class="section-box ' + cls + '"><h3>' + esc(title) + '</h3><ul>';
-            items.forEach(function(item) { html += '<li>' + esc(item) + '</li>'; });
+            let html = '<div class="section-box ' + cls + '"><h3>' + esc(title) + '</h3><ul>';
+            items.forEach(item => { html += '<li>' + esc(item) + '</li>'; });
             return html + '</ul></div>';
         }
 
         function renderSources(sources) {
             if (!sources || !sources.length) return '';
-            var html = '<div class="sources-box"><h3>Sources (Knowledge) — ' + sources.length + '</h3>';
-            sources.forEach(function(s, i) {
-                var authors = Array.isArray(s.authors) ? s.authors.slice(0, 3).join(', ') : '';
-                var doi = s.doi ? ' | DOI: ' + s.doi : '';
-                html += '<div class="source-item">' +
-                    '<div class="source-title">[' + (i+1) + '] ' + esc(s.paper_title) + '</div>' +
+            let html = '<div class="sources-box"><h3>Sources (Knowledge) — ' + sources.length + '</h3>';
+            sources.forEach((s, i) => {
+                const authors = Array.isArray(s.authors) ? s.authors.slice(0, 3).join(', ') : '';
+                const doi = s.doi ? ' | DOI: ' + s.doi : '';
+                html += '<div class="source-item"><div class="source-title">[' + (i + 1) + '] ' + esc(s.paper_title) + '</div>' +
                     '<div class="source-meta">' + esc(authors) + doi + (s.section ? ' | ' + esc(s.section) : '') + ' | <span class="score">' + (s.score || 0).toFixed(3) + '</span></div>' +
-                    '<div class="source-text">' + esc((s.text || '').substring(0, 250)) + '</div>' +
-                '</div>';
+                    '<div class="source-text">' + esc((s.text || '').substring(0, 250)) + '</div></div>';
             });
             return html + '</div>';
         }
 
+        // Lightweight markdown-ish formatting: **bold**, leading "- " bullets.
+        function formatAnswer(text) {
+            const escaped = esc(text);
+            return escaped
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/^-\s+/gm, '– ');
+        }
+
         function esc(text) {
-            var d = document.createElement('div');
-            d.textContent = text || '';
+            const d = document.createElement('div');
+            d.textContent = (text === null || text === undefined) ? '' : String(text);
             return d.innerHTML;
         }
 
         async function uploadPaper(event) {
             event.preventDefault();
-            var form = document.getElementById('upload-form');
-            var status = document.getElementById('upload-status');
-            status.innerHTML = '<div class="loading">Uploading to Library...</div>';
+            const form = document.getElementById('upload-form');
+            const status = document.getElementById('upload-status');
+            status.innerHTML = '<div class="loading">Uploading to Library&hellip;</div>';
             try {
-                var resp = await fetch('/api/upload', { method: 'POST', body: new FormData(form) });
-                var data = await resp.json();
+                const resp = await fetch('/api/upload', { method: 'POST', body: new FormData(form) });
+                const data = await resp.json();
                 if (data.error) {
                     status.innerHTML = '<p style="color:var(--red)">' + esc(data.error) + '</p>';
                 } else {
                     status.innerHTML = '<p style="color:var(--green)">' + esc(data.message) + '</p>';
-                    var stats = await (await fetch('/api/stats')).json();
-                    document.getElementById('paper-count').textContent = stats.total_papers;
-                    document.getElementById('chunk-count').textContent = stats.total_chunks;
+                    loadStats();
+                    loadLibrary();
                 }
             } catch (err) {
                 status.innerHTML = '<p style="color:var(--red)">Failed: ' + esc(err.message) + '</p>';
             }
         }
+
+        // ---------------- Library tab ----------------
+        async function loadLibrary() {
+            try {
+                allPapers = await (await fetch('/api/papers')).json();
+                renderLibrary();
+            } catch (err) {
+                document.getElementById('library-body').innerHTML = '<div class="empty-state">Failed to load library.</div>';
+            }
+        }
+
+        function renderLibrary() {
+            const body = document.getElementById('library-body');
+            const q = (document.getElementById('lib-search').value || '').toLowerCase();
+            const src = document.getElementById('lib-source-filter').value;
+            let papers = allPapers;
+            if (src) papers = papers.filter(p => p.source === src);
+            if (q) papers = papers.filter(p => (p.title || '').toLowerCase().includes(q) || (p.doi || '').toLowerCase().includes(q) || (p.paper_id || '').toLowerCase().includes(q));
+
+            if (!papers.length) { body.innerHTML = '<div class="empty-state">No papers match. Run `acheron collect` &amp; `acheron index` to populate the library.</div>'; return; }
+
+            let html = '<table class="lib-table"><tr><th>Title</th><th>Source</th><th>ID / DOI</th></tr>';
+            papers.slice(0, 500).forEach(p => {
+                const color = SOURCE_COLORS[p.source] || '#8b949e';
+                html += '<tr><td>' + esc(p.title || '(untitled)') + '</td>' +
+                    '<td><span class="source-tag" style="border-color:' + color + '55;color:' + color + ';">' + esc(p.source || '?') + '</span></td>' +
+                    '<td class="mono" style="font-size:0.75rem;color:var(--text-dim);">' + esc(p.doi || p.paper_id || '') + '</td></tr>';
+            });
+            html += '</table>';
+            if (papers.length > 500) html += '<div class="meta-line">Showing first 500 of ' + papers.length + ' matches.</div>';
+            body.innerHTML = html;
+        }
+
+        // ---------------- Ledger tab ----------------
+        async function loadLedger() {
+            const body = document.getElementById('ledger-body');
+            body.innerHTML = '<div class="empty-state">Loading ledger&hellip;</div>';
+            try {
+                const entries = await (await fetch('/api/ledger')).json();
+                if (!entries.length) { body.innerHTML = '<div class="empty-state">No experiments logged yet. Run a Discover or Analyze query to populate the ledger.</div>'; return; }
+                let html = '<table class="lib-table"><tr><th>Timestamp</th><th>Query</th><th>Hypotheses</th><th>Tags</th></tr>';
+                entries.slice().reverse().forEach(e => {
+                    html += '<tr><td class="mono" style="font-size:0.75rem;">' + esc((e.timestamp || '').replace('T', ' ').substring(0, 19)) + '</td>' +
+                        '<td>' + esc(e.query) + '</td>' +
+                        '<td style="text-align:center;">' + (e.hypotheses ? e.hypotheses.length : 0) + '</td>' +
+                        '<td>' + esc((e.tags || []).join(', ')) + '</td></tr>';
+                });
+                html += '</table>';
+                body.innerHTML = html;
+            } catch (err) {
+                body.innerHTML = '<div class="empty-state">Failed to load ledger.</div>';
+            }
+        }
+
+        loadStats();
     </script>
 </body>
 </html>

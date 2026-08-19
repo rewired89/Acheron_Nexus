@@ -24,7 +24,7 @@ from acheron.config import get_settings
 
 console = Console()
 
-# Default search topics for bioelectricity research
+# Default search topics for bioelectricity research (literature sources)
 DEFAULT_TOPICS = {
     "planarian_bioelectricity": (
         "planarian bioelectricity membrane voltage regeneration"
@@ -46,6 +46,25 @@ DEFAULT_TOPICS = {
     ),
 }
 
+# Default queries for structural/genomic bio-databases (gene/protein-name
+# style queries rather than natural-language phrases). Used for
+# --source uniprot|pdb|ncbi_gene when no explicit --topic is given.
+GENE_PROTEIN_TOPICS = {
+    "innexin": "innexin",
+    "connexin": "connexin gap junction",
+    "voltage_gated_potassium": "KCNQ voltage-gated potassium channel",
+    "voltage_gated_sodium": "SCN voltage-gated sodium channel",
+    "voltage_gated_calcium": "CACNA voltage-gated calcium channel",
+    "gap_junction_protein": "gap junction protein",
+}
+
+# AlphaFold DB is looked up by UniProt accession, not free text — there
+# is no sensible default query. Run `acheron collect --source uniprot`
+# first to discover accessions for your gene family of interest, then
+# pass them with --topic "P17302,Q9Y6N1,..." for --source alphafold.
+
+BIO_DB_SOURCES = ("uniprot", "pdb", "alphafold", "ncbi_gene")
+
 
 @click.group()
 @click.option("--verbose", "-v", is_flag=True, help="Enable debug logging")
@@ -65,9 +84,12 @@ def main(verbose: bool) -> None:
 @main.command()
 @click.option(
     "--source",
-    type=click.Choice(["pubmed", "biorxiv", "arxiv", "physionet", "all"]),
+    type=click.Choice(
+        ["pubmed", "biorxiv", "arxiv", "physionet", "uniprot", "pdb", "alphafold", "ncbi_gene", "all"]
+    ),
     default="all",
-    help="Which source to collect from",
+    help="Which source to collect from ('all' = literature sources only; "
+    "bio-databases are collected explicitly since they take gene/protein queries)",
 )
 @click.option("--topic", "-t", multiple=True, help="Custom search queries")
 @click.option("--max-results", "-n", default=50, help="Max papers per query per source")
@@ -82,18 +104,37 @@ def collect(
     maxdate: str | None,
     download_pdfs: bool,
 ) -> None:
-    """Collect papers into the Library from academic sources.
+    """Collect papers into the Library from academic sources and free bio-databases.
 
     Examples:
         acheron collect --source pubmed -t "bioelectricity planarian" -n 25 --mindate 2015
         acheron collect --source pubmed -t "ion channel voltage" --mindate 2020 --maxdate 2024
+        acheron collect --source uniprot -t "innexin" -t "connexin gap junction"
+        acheron collect --source pdb -t "connexin gap junction channel"
+        acheron collect --source ncbi_gene -t "KCNQ1" -t "GJA1"
+        acheron collect --source alphafold -t "P17302,Q9Y6N1"   # UniProt accessions
     """
     from acheron.collectors.arxiv import ArxivCollector
     from acheron.collectors.biorxiv import BiorxivCollector
     from acheron.collectors.physionet import PhysioNetCollector
     from acheron.collectors.pubmed import PubMedCollector
+    from acheron.collectors.structures import AlphaFoldCollector, PDBCollector
+    from acheron.collectors.ncbi_gene import NCBIGeneCollector
+    from acheron.collectors.uniprot import UniProtCollector
 
-    topics = list(topic) if topic else list(DEFAULT_TOPICS.values())
+    if topic:
+        topics = list(topic)
+    elif source in BIO_DB_SOURCES:
+        if source == "alphafold":
+            console.print(
+                "[yellow]--source alphafold has no default query — pass UniProt "
+                "accessions with -t, e.g. -t \"P17302,Q9Y6N1\". "
+                "Run --source uniprot first to discover accessions.[/]"
+            )
+            return
+        topics = list(GENE_PROTEIN_TOPICS.values())
+    else:
+        topics = list(DEFAULT_TOPICS.values())
 
     collectors = []
     if source in ("pubmed", "all"):
@@ -104,6 +145,14 @@ def collect(
         collectors.append(("arXiv", ArxivCollector()))
     if source in ("physionet", "all"):
         collectors.append(("PhysioNet", PhysioNetCollector()))
+    if source == "uniprot":
+        collectors.append(("UniProt", UniProtCollector()))
+    if source == "pdb":
+        collectors.append(("PDB", PDBCollector()))
+    if source == "alphafold":
+        collectors.append(("AlphaFold DB", AlphaFoldCollector()))
+    if source == "ncbi_gene":
+        collectors.append(("NCBI Gene", NCBIGeneCollector()))
 
     total_papers = 0
     total_fulltext = 0
