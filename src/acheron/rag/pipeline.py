@@ -409,80 +409,71 @@ CONSTRAINTS:
 - Prefer public, de-identified data.
 - Prefer "I cannot support that with sources" over inventing details."""
 
-QUERY_TEMPLATE = """\
-Retrieved source passages from the bioelectricity and biomedical research corpus:
+# ======================================================================
+# Short, plain-English query mode — the everyday "Query" tab.
+# SYSTEM_PROMPT above (and DISCOVERY_TEMPLATE below) are the full Discovery
+# Engine used by discover(): heavy, multi-section, hypothesis-and-protocol
+# output meant for deep research use. The plain Query button used to share
+# that same heavy template, so every quick question came back as a wall of
+# academic jargon and wet-lab protocols. This is the same science-first
+# rules (no invented numbers, every claim cited, evidence/inference/
+# speculation tagged) but told to actually answer in short, plain English
+# instead of writing a research proposal.
+# ======================================================================
+QUERY_SYSTEM_PROMPT = """\
+You are Nexus, a research assistant for bioelectricity and biomedical science.
+The person asking is NOT a biologist — write for a smart, curious non-scientist.
+Anyone technical can click through to the cited source paper to verify.
+
+RULES (non-negotiable):
+1. Never invent a number, fact, or citation. Only state what the retrieved
+   source passages actually say. If they don't answer the question, say so
+   plainly instead of guessing.
+2. Every substantive claim goes under one of three headers — EVIDENCE,
+   INFERENCE, or SPECULATION:
+   - EVIDENCE = directly stated in a cited source.
+   - INFERENCE = a reasonable conclusion from the evidence, not stated outright.
+   - SPECULATION = plausible but unproven — say so honestly.
+3. End each bullet with the source in plain parentheses, e.g.
+   "(Mathews & Levin, 2019)" — the app attaches the full citation and a
+   link separately, so you don't need DOIs/PMIDs inline.
+
+STYLE (just as important as the rules above):
+- Plain English. Explain any technical term the first time you use it, in a
+  few plain words, right in the same sentence — don't assume prior biology
+  knowledge.
+- Short. One or two sentences per bullet, not paragraphs.
+- No headers besides EVIDENCE/INFERENCE/SPECULATION, no numbered sections,
+  no experiment protocols, no "instruction set" jargon — this is a quick
+  answer, not a research proposal.
+- No preamble. Don't say "Great question" or restate the question back."""
+
+SHORT_QUERY_TEMPLATE = """\
+Retrieved source passages:
 
 === SOURCE PASSAGES ===
 {context}
 ========================
 
-Query: {query}
+Question: {query}
 
-Respond with the following mandatory structure. Tag EVERY sentence with \
-[EVIDENCE], [INFERENCE], [SPECULATION], or [DATA GAP].
-Citation format: Title — Site/Journal — Author(s) — Year — URL/DOI/PMCID.
+Answer using ONLY what's in the passages above — never invent a fact or
+number. Structure your response exactly like this (omit a section entirely
+if you have nothing to put in it):
 
-1) Evidence Extracted
-- Bullet list of facts directly supported by citations. Tag each [EVIDENCE].
-- Bullet list of inferences constrained by physics or theory. Tag each [INFERENCE].
-- Bullet list of speculative claims beyond current evidence. Tag each [SPECULATION].
-- Bullet list of facts supported by simulations. Tag each [SIMULATION].
-- Cite with full format. If abstract only: [ABSTRACT-ONLY]. If preprint: [PREPRINT].
-- If organism-specific data is absent, state [DATA GAP] instead of generalizing.
+EVIDENCE:
+- Plain-English bullets stating only what the sources directly say.
 
-2) Hypothesis (max 3)
-For EACH hypothesis:
-- One falsifiable paragraph with measurable observables (mV ranges, time \
-constants, success thresholds). Formal scientific language. Describe the \
-proposed physical mechanism, what information is stored, where, and how it \
-is read during regeneration. Tagged [SPECULATION].
-- This hypothesis is based on:
-  * Title — Site/Journal — Author(s) — Year — URL/DOI/PMCID [1]
-  * (repeat for all sources used)
-- Predicted observables: bullet list, label each MEASURED, PREDICTED, \
-SIMULATION-DERIVED, BOUNDED-INFERENCE, or UNKNOWN.
+INFERENCE:
+- Plain-English bullets: reasonable conclusions from the evidence above that
+  the sources don't state outright.
 
-3) Experiment Proposal
-For EACH hypothesis:
-A) Simulation: model type, parameters swept, expected outputs, falsification \
-criteria. State what parameter is measured (T_hold, BER, Gj, propagation \
-speed, attractor count).
-B) Wet-lab Phase-0 (cheapest): hardware requirements, reagents/dyes \
-(exact markers), timed protocol steps with ISA command mapping (SET_BIT, \
-READ_BIT, GATE, AUTH, QUARANTINE, REWRITE), quantification plan (target \
-range from GHK), success metric (quantitative pass/fail), kill condition \
-(falsifiable rejection threshold), timeline, cost. State parameter \
-measured (T_hold, BER, Gj, propagation speed, attractor count).
-C) Wet-lab Phase-1 (stronger): same structure as Phase-0.
+SPECULATION:
+- Plain-English bullets: plausible ideas that go beyond what the evidence
+  actually shows. Say clearly that these are unproven.
 
-4) Transfer Logic
-- Planarian→vertebrate mapping rules: gap junctions = innexin (planarian) / \
-connexin (vertebrate). State method portability for each experimental step.
-- If the hypothesis relies on planarian-specific traits, propose an alternative \
-substrate and justify with citations.
-- Decision gate: "If X fails, switch to Y substrate."
-
-5) Closed-Loop Task (for each hypothesis)
-1. Hypothesis: Based on [Cited Paper].
-2. Experiment Design: [Protocol from Experiment Proposal with Bio-ISA commands \
-(SET_BIT, READ_BIT, GATE, AUTH, QUARANTINE, REWRITE)].
-3. Data Collection Plan: [Instrument, units, expected range, sampling rate].
-4. Refinement: "If result is X, BIM parameter Y is valid. If result is Z, \
-adjust Graph Connectivity parameter W and re-test."
-
-V. BIOELECTRIC SCHEMATIC
-- BIGR layers: ROM (genetic) / RAM (bioelectric) / Interface (proteomic)
-- Format: "[Trigger] -> [Bioelectric change] -> [Downstream pathway] -> [Outcome]"
-- Label each component [EVIDENCED], [INFERRED], or [SPECULATIVE].
-
-VI. BIM SPECIFICATION (when bioelectric states are discussed)
-- For each parameter (T_hold, E_bit, BER, entropy, capacity):
-  Cite measured value OR state "UNKNOWN—needs measurement" + propose \
-the minimal measurement to obtain it.
-- Map to Hardware Library: CPU (Nav/Kv), RAM (Vmem), SSD (Innexin).
-
-VII. NEXT COLLECTION QUERIES
-- 5-10 exact PubMed/PMC/bioRxiv queries to fill the data gaps identified above."""
+If the passages don't answer the question, say so plainly under EVIDENCE
+instead of manufacturing a technical-sounding non-answer."""
 
 DISCOVERY_TEMPLATE = """\
 Retrieved source passages from the bioelectricity and biomedical research corpus:
@@ -682,10 +673,12 @@ class RAGPipeline:
         # Select top context passages (source diversity)
         top_results = self._select_context(results)
 
-        # Layer 3 — Compute: generate structured response
+        # Layer 3 — Compute: generate a short, plain-English response.
+        # (Deliberately NOT the heavy Discovery-loop SYSTEM_PROMPT/DISCOVERY_TEMPLATE
+        # used below by discover() — that's for deep research, not a quick question.)
         context_str = self._format_context(top_results)
-        user_prompt = QUERY_TEMPLATE.format(context=context_str, query=question)
-        raw_answer = self._generate(user_prompt)
+        user_prompt = SHORT_QUERY_TEMPLATE.format(context=context_str, query=question)
+        raw_answer = self._generate_with_system(QUERY_SYSTEM_PROMPT, user_prompt, max_tokens=900)
 
         # Parse structured sections from the response
         evidence, inference, speculation, schematic = self._parse_epistemic_sections(
