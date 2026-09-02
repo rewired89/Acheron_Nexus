@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus — System-2 Bioelectric Research Engine</title>
+    <title>Nexus, System-2 Bioelectric Research Engine</title>
     <style>
         :root {
             --bg: #0a0e14;
@@ -267,7 +267,7 @@
                         <path d="M36 2 L36 10 M36 62 L36 70 M2 36 L10 36 M62 36 L70 36" stroke="#5b6577" stroke-width="1"/>
                     </svg>
                 </div>
-                <p class="hero-tagline">A research engine for bioelectricity — it separates what the evidence actually shows from what's inferred and what's still speculation, with a direct link back to every source so you (or any scientist you show this to) can verify it.</p>
+                <p class="hero-tagline">A research engine for bioelectricity, it separates what the evidence actually shows from what's inferred and what's still speculation, with a direct link back to every source so you (or any scientist you show this to) can verify it.</p>
                 <div class="hero-badges">
                     <span class="hero-badge">EVIDENCE-BOUND</span>
                     <span class="hero-badge">FALSIFICATION-FIRST</span>
@@ -287,7 +287,7 @@
                     </div>
                 </div>
                 <button class="btn-cta" onclick="focusQuery()">Ask Nexus a question &rarr;</button>
-                <div class="hero-note">Papers, protein structures, and gene records — every answer traces back to a real, linked source.</div>
+                <div class="hero-note">Papers, protein structures, and gene records, every answer traces back to a real, linked source.</div>
                 <div class="source-strip">
                     <a class="source-chip" href="https://pubmed.ncbi.nlm.nih.gov" target="_blank" rel="noopener"><div class="sc-name">PubMed</div><div class="sc-kind">literature</div></a>
                     <a class="source-chip" href="https://www.uniprot.org" target="_blank" rel="noopener"><div class="sc-name">UniProt</div><div class="sc-kind">protein</div></a>
@@ -457,9 +457,9 @@
             manual: 'Uploaded document'
         };
         const SECTION_EXPLAINERS = {
-            evidence: 'Directly supported by the sources below — the most trustworthy tier.',
+            evidence: 'Directly supported by the sources below, the most trustworthy tier.',
             inference: 'A reasonable next step drawn from that evidence, but not stated outright by the sources.',
-            speculation: 'An idea worth testing — not yet shown by evidence. Treat as a hypothesis, not a fact.',
+            speculation: 'An idea worth testing, not yet shown by evidence. Treat as a hypothesis, not a fact.',
             uncertainty: 'Gaps or unknowns Nexus is flagging honestly rather than guessing at.',
             validation: 'Concrete next steps to test the idea experimentally.',
             crossspecies: 'How this might (or might not) carry over between planaria, Xenopus, and other species.'
@@ -630,13 +630,13 @@
             let html = '';
             if (data.evidence && data.evidence.length) html += renderSection('evidence', '1. What the evidence shows', data.evidence);
             if (data.variables && data.variables.length) {
-                html += '<div class="section-box variables"><h3>2. Measured quantities found</h3><div class="section-sub">Numbers pulled directly from sources — never invented.</div><table class="var-table"><tr><th>Name</th><th>Value</th><th>Unit</th><th>Type</th><th>Src</th></tr>';
+                html += '<div class="section-box variables"><h3>2. Measured quantities found</h3><div class="section-sub">Numbers pulled directly from sources, never invented.</div><table class="var-table"><tr><th>Name</th><th>Value</th><th>Unit</th><th>Type</th><th>Src</th></tr>';
                 data.variables.forEach(v => { html += '<tr><td>' + esc(v.name) + '</td><td>' + esc(v.value) + '</td><td>' + esc(v.unit) + '</td><td>' + esc(v.type || '') + '</td><td>' + esc(v.source_ref) + '</td></tr>'; });
                 html += '</table></div>';
             }
             if (data.inference && data.inference.length) html += renderSection('inference', '3. Patterns across sources', data.inference);
             if (data.hypotheses && data.hypotheses.length) {
-                html += '<div class="section-box hypotheses"><h3>4. Testable hypotheses</h3><div class="section-sub">Ideas that would explain the evidence, ranked by how confident Nexus is — not proven facts.</div>';
+                html += '<div class="section-box hypotheses"><h3>4. Testable hypotheses</h3><div class="section-sub">Ideas that would explain the evidence, ranked by how confident Nexus is, not proven facts.</div>';
                 data.hypotheses.forEach(h => {
                     const confClass = 'conf-' + (h.confidence || 'low');
                     html += '<div class="hyp-item"><div class="hyp-statement">' + esc(h.statement) + '</div><div class="hyp-meta">Prior Confidence: <span class="' + confClass + '">' + esc(h.confidence) + '</span>' +
@@ -672,7 +672,7 @@
 
             (data.hypotheses || []).forEach(h => {
                 const confClass = h.confidence >= 70 ? 'conf-high' : h.confidence >= 40 ? 'conf-medium' : 'conf-low';
-                html += '<div class="section-box hypotheses"><h3>' + esc(h.id) + ' (rank #' + h.rank + ') — <span class="' + confClass + '">' + h.confidence + '/100 confidence</span></h3>';
+                html += '<div class="section-box hypotheses"><h3>' + esc(h.id) + ' (rank #' + h.rank + '), <span class="' + confClass + '">' + h.confidence + '/100 confidence</span></h3>';
                 html += '<div class="answer-raw" style="margin:0 0 0.5rem;">' + esc(h.statement) + '</div>';
                 html += '<div class="hyp-meta">Scoring: explanatory=' + h.explanatory_power.toFixed(1) + ' simplicity=' + h.simplicity.toFixed(1) +
                     ' consistency=' + h.consistency.toFixed(1) + ' mechanistic=' + h.mechanistic_plausibility.toFixed(1) + ' → overall=' + h.overall_score.toFixed(2) + '</div>';
@@ -712,7 +712,7 @@
         // a scientist can go verify the detail themselves.
         function renderSources(sources) {
             if (!sources || !sources.length) return '';
-            let html = '<div class="sources-box"><h3>Sources</h3><div class="section-sub">Where these answers came from — click through to read the original.</div>';
+            let html = '<div class="sources-box"><h3>Sources</h3><div class="section-sub">Where these answers came from, click through to read the original.</div>';
             sources.forEach((s, i) => {
                 const authors = Array.isArray(s.authors) ? s.authors.slice(0, 3).join(', ') : '';
                 const doi = s.doi ? ' | DOI: ' + s.doi : '';

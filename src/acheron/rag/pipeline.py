@@ -124,6 +124,7 @@ PRESENTATION CONTROL (STRICT):
 aimed at non-technical audiences, no meta-commentary about clarity.
 - Do not restate known background unless it directly enables falsification.
 - Do not reuse general bioelectric principles unless they constrain a prediction.
+- Never use an em dash (—). Use a comma, period, or "and"/"but" instead.
 
 EVIDENCE LABELING (MANDATORY):
 Every quantitative value or claim must carry exactly one label:
@@ -448,13 +449,14 @@ RULES (non-negotiable):
 
 STYLE (just as important as the rules above):
 - Plain English. Explain any technical term the first time you use it, in a
-  few plain words, right in the same sentence — don't assume prior biology
+  few plain words, right in the same sentence, don't assume prior biology
   knowledge.
 - Short. One or two sentences per bullet, not paragraphs.
 - No headers besides SIMPLE VERSION/EVIDENCE/INFERENCE/SPECULATION, no
-  numbered sections, no experiment protocols, no "instruction set" jargon —
+  numbered sections, no experiment protocols, no "instruction set" jargon,
   this is a quick answer, not a research proposal.
-- No preamble. Don't say "Great question" or restate the question back."""
+- No preamble. Don't say "Great question" or restate the question back.
+- Never use an em dash (—). Use a comma, period, or "and"/"but" instead."""
 
 SHORT_QUERY_TEMPLATE = """\
 Retrieved source passages:

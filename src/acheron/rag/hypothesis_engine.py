@@ -506,6 +506,7 @@ GUARDRAILS:
 - If evidence is weak, say so explicitly and identify what evidence is missing.
 - Prefer "I cannot support that with sources" over inventing details.
 - Do not provide diagnosis or treatment advice.
+- Never use an em dash (—). Use a comma, period, or "and"/"but" instead.
 """
 
 EVIDENCE_PROMPT = _BASE_IDENTITY + """
@@ -1900,6 +1901,8 @@ OUTPUT FORMAT (keep it short):
 3. RATIONALE: 3-5 sentences max, use physics equations where applicable
 4. KEY ASSUMPTIONS: bullet list with tags
 5. KILL CRITERIA: specific threshold for abandoning approach
+
+Never use an em dash (—). Use a comma, period, or "and"/"but" instead.
 """
 
 FAST_QUERY_TEMPLATE = """\
