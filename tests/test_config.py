@@ -8,7 +8,7 @@ from acheron.config import Settings, get_settings
 def test_default_settings():
     s = Settings()
     assert s.llm_provider == "anthropic"
-    assert s.resolved_llm_model == "claude-sonnet-4-20250514"
+    assert s.resolved_llm_model == "claude-sonnet-5"
     assert s.embedding_model == "all-MiniLM-L6-v2"
     assert s.port == 8000
     assert isinstance(s.data_dir, Path)
@@ -22,7 +22,7 @@ def test_openai_provider_defaults():
 
 def test_anthropic_provider_defaults():
     s = Settings(llm_provider="anthropic")
-    assert s.resolved_llm_model == "claude-sonnet-4-20250514"
+    assert s.resolved_llm_model == "claude-sonnet-5"
     assert s.resolved_llm_base_url == "https://api.anthropic.com"
 
 

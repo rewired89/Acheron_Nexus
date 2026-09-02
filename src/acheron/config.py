@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     # Anthropic-native LLM settings
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
-    anthropic_model: str = Field(default="claude-sonnet-4-20250514", alias="ANTHROPIC_MODEL")
+    anthropic_model: str = Field(default="claude-sonnet-5", alias="ANTHROPIC_MODEL")
     anthropic_max_tokens: int = Field(default=4096, alias="ANTHROPIC_MAX_TOKENS")
 
     # Embeddings
