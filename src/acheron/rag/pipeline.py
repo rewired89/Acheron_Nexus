@@ -949,11 +949,13 @@ class RAGPipeline:
 
         try:
             if self._provider == "anthropic":
+                # No `temperature` here — newer Claude models (e.g. claude-sonnet-5)
+                # reject it as deprecated (400 invalid_request_error). The
+                # OpenAI-compatible branch below still accepts it fine.
                 response = client.messages.create(
                     model=model,
                     system=system_prompt,
                     messages=[{"role": "user", "content": user_prompt}],
-                    temperature=0.2,
                     max_tokens=max_tokens,
                 )
                 return response.content[0].text if response.content else ""
@@ -1080,11 +1082,11 @@ class RAGPipeline:
 
         try:
             if self._provider == "anthropic":
+                # No `temperature` here — see the same note in _generate_with_system.
                 response = client.messages.create(
                     model=model,
                     system=SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": user_prompt}],
-                    temperature=0.2,
                     max_tokens=max_tokens,
                 )
                 return response.content[0].text if response.content else ""
