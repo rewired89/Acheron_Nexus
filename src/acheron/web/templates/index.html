@@ -168,6 +168,9 @@
         .section-box { background: var(--surface); padding: 1rem; border-radius: var(--radius); border-left: 3px solid var(--border); margin-bottom: 1rem; }
         .section-box h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 0.15rem; font-weight: 700; }
         .section-sub { font-size: 0.74rem; color: var(--text-faint); margin-bottom: 0.6rem; font-style: italic; }
+        .section-box.plain-summary { border-left-color: var(--accent); background: var(--accent-dim); }
+        .section-box.plain-summary h3 { color: var(--accent); }
+        .section-box.plain-summary p { font-size: 1rem; line-height: 1.65; color: var(--text); margin: 0; }
         .section-box.evidence { border-left-color: var(--green); } .section-box.evidence h3 { color: var(--green); }
         .section-box.inference { border-left-color: var(--yellow); } .section-box.inference h3 { color: var(--yellow); }
         .section-box.speculation { border-left-color: var(--red); } .section-box.speculation h3 { color: var(--red); }
@@ -608,6 +611,7 @@
 
         function renderQueryResults(data, retrieveOnly) {
             let html = '';
+            if (!retrieveOnly && data.plain_summary) html += plainSummaryBox(data.plain_summary);
             const hasStructured = (data.evidence && data.evidence.length) || (data.inference && data.inference.length) || (data.speculation && data.speculation.length);
             if (!retrieveOnly && hasStructured) {
                 if (data.evidence && data.evidence.length) html += renderSection('evidence', 'What the evidence shows', data.evidence);
@@ -685,6 +689,10 @@
             const confClass = data.confidence >= 70 ? 'conf-high' : data.confidence >= 40 ? 'conf-medium' : 'conf-low';
             html += '<div class="meta-line">Overall confidence: <span class="' + confClass + '">' + data.confidence + '/100</span> | Model: ' + esc(data.model_used) + ' | Chunks: ' + data.total_chunks_searched + '</div>';
             resultsDiv.innerHTML = html || '<div class="answer-raw">No results.</div>';
+        }
+
+        function plainSummaryBox(text) {
+            return '<div class="section-box plain-summary"><h3>In plain terms</h3><p>' + esc(text) + '</p></div>';
         }
 
         function schematicBox(text, title) {

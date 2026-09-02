@@ -308,6 +308,9 @@ class RAGResponse(BaseModel):
     sources: list[QueryResult] = Field(default_factory=list)
     model_used: str = ""
     total_chunks_searched: int = 0
+    # A one-or-two-sentence everyday-analogy summary, for a reader with no
+    # science background at all. Populated by query() (the plain "Query" tab).
+    plain_summary: str = ""
     # Optional structured layers — populated when discovery mode is used
     evidence_statements: list[str] = Field(default_factory=list)
     inference_statements: list[str] = Field(default_factory=list)

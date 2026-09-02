@@ -77,6 +77,7 @@ class QueryResponse(BaseModel):
     sources: list[dict]
     model_used: str
     total_chunks_searched: int
+    plain_summary: str = ""
     evidence: list[str] = []
     inference: list[str] = []
     speculation: list[str] = []
@@ -171,6 +172,7 @@ async def api_query(req: QueryRequest):
         sources=[_source_dict(s) for s in response.sources],
         model_used=response.model_used,
         total_chunks_searched=response.total_chunks_searched,
+        plain_summary=response.plain_summary,
         evidence=response.evidence_statements,
         inference=response.inference_statements,
         speculation=response.speculation_statements,

@@ -25,7 +25,7 @@ BIOELECTRIC SCHEMATIC
 UNCERTAINTY
 - No data on ion channel expression kinetics during first 6 hours.
 """
-    evidence, inference, speculation, schematic = RAGPipeline._parse_epistemic_sections(text)
+    _, evidence, inference, speculation, schematic = RAGPipeline._parse_epistemic_sections(text)
     assert len(evidence) == 2
     assert "bioelectric signals" in evidence[0]
     assert len(inference) == 1
@@ -49,7 +49,7 @@ def test_parse_epistemic_sections_markdown_headers():
 ## BIOELECTRIC SCHEMATIC
 - Trigger -> Vmem change -> outcome
 """
-    evidence, inference, speculation, schematic = RAGPipeline._parse_epistemic_sections(text)
+    _, evidence, inference, speculation, schematic = RAGPipeline._parse_epistemic_sections(text)
     assert len(evidence) >= 1
     assert len(inference) >= 1
     assert len(speculation) >= 1
@@ -67,9 +67,22 @@ INFERENCE
 SPECULATION
 - Guess here.
 """
-    evidence, inference, speculation, schematic = RAGPipeline._parse_epistemic_sections(text)
+    _, evidence, inference, speculation, schematic = RAGPipeline._parse_epistemic_sections(text)
     assert len(evidence) >= 1
     assert schematic == ""
+
+
+def test_parse_epistemic_sections_plain_summary():
+    text = """
+SIMPLE VERSION
+- Gap junctions are like tiny doorways between neighboring cells.
+
+EVIDENCE
+- Gap junctions let ions pass directly between cells [1].
+"""
+    plain_summary, evidence, _, _, _ = RAGPipeline._parse_epistemic_sections(text)
+    assert "doorways" in plain_summary
+    assert len(evidence) == 1
 
 
 def test_try_parse_variable_full():

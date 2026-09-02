@@ -437,15 +437,23 @@ RULES (non-negotiable):
 3. End each bullet with the source in plain parentheses, e.g.
    "(Mathews & Levin, 2019)" — the app attaches the full citation and a
    link separately, so you don't need DOIs/PMIDs inline.
+4. Before any of that, write a SIMPLE VERSION: one or two sentences using a
+   plain, everyday analogy — comparing the biology to something like rooms,
+   doors, mail, traffic, light switches, plumbing, whatever fits — so someone
+   with zero science background gets the gist immediately. Simplify the
+   IDEA, not the FACTS: don't say anything the evidence below wouldn't
+   support, just say it the simplest possible way. Think "explain it like
+   you would to a curious friend who's never taken a biology class," not
+   "dumb it down until it's wrong."
 
 STYLE (just as important as the rules above):
 - Plain English. Explain any technical term the first time you use it, in a
   few plain words, right in the same sentence — don't assume prior biology
   knowledge.
 - Short. One or two sentences per bullet, not paragraphs.
-- No headers besides EVIDENCE/INFERENCE/SPECULATION, no numbered sections,
-  no experiment protocols, no "instruction set" jargon — this is a quick
-  answer, not a research proposal.
+- No headers besides SIMPLE VERSION/EVIDENCE/INFERENCE/SPECULATION, no
+  numbered sections, no experiment protocols, no "instruction set" jargon —
+  this is a quick answer, not a research proposal.
 - No preamble. Don't say "Great question" or restate the question back."""
 
 SHORT_QUERY_TEMPLATE = """\
@@ -458,8 +466,13 @@ Retrieved source passages:
 Question: {query}
 
 Answer using ONLY what's in the passages above — never invent a fact or
-number. Structure your response exactly like this (omit a section entirely
-if you have nothing to put in it):
+number. Structure your response exactly like this (omit EVIDENCE/INFERENCE/
+SPECULATION if you have nothing to put in it, but ALWAYS include SIMPLE
+VERSION):
+
+SIMPLE VERSION:
+- One or two sentences, plain everyday analogy, zero jargon. This is the
+  part a total beginner reads.
 
 EVIDENCE:
 - Plain-English bullets stating only what the sources directly say.
@@ -472,8 +485,8 @@ SPECULATION:
 - Plain-English bullets: plausible ideas that go beyond what the evidence
   actually shows. Say clearly that these are unproven.
 
-If the passages don't answer the question, say so plainly under EVIDENCE
-instead of manufacturing a technical-sounding non-answer."""
+If the passages don't answer the question, say so plainly under SIMPLE
+VERSION and EVIDENCE instead of manufacturing a technical-sounding non-answer."""
 
 DISCOVERY_TEMPLATE = """\
 Retrieved source passages from the bioelectricity and biomedical research corpus:
@@ -681,8 +694,8 @@ class RAGPipeline:
         raw_answer = self._generate_with_system(QUERY_SYSTEM_PROMPT, user_prompt, max_tokens=900)
 
         # Parse structured sections from the response
-        evidence, inference, speculation, schematic = self._parse_epistemic_sections(
-            raw_answer
+        plain_summary, evidence, inference, speculation, schematic = (
+            self._parse_epistemic_sections(raw_answer)
         )
 
         return RAGResponse(
@@ -691,6 +704,7 @@ class RAGPipeline:
             sources=top_results,
             model_used=self.settings.resolved_llm_model,
             total_chunks_searched=len(results),
+            plain_summary=plain_summary,
             evidence_statements=evidence,
             inference_statements=inference,
             speculation_statements=speculation,
@@ -1116,11 +1130,13 @@ class RAGPipeline:
     @staticmethod
     def _parse_epistemic_sections(
         text: str,
-    ) -> tuple[list[str], list[str], list[str], str]:
-        """Parse EVIDENCE / INFERENCE / SPECULATION / BIOELECTRIC SCHEMATIC from LLM output.
+    ) -> tuple[str, list[str], list[str], list[str], str]:
+        """Parse SIMPLE VERSION / EVIDENCE / INFERENCE / SPECULATION /
+        BIOELECTRIC SCHEMATIC from LLM output.
 
-        Returns (evidence, inference, speculation, bioelectric_schematic).
+        Returns (plain_summary, evidence, inference, speculation, bioelectric_schematic).
         """
+        plain_summary_lines: list[str] = []
         evidence: list[str] = []
         inference: list[str] = []
         speculation: list[str] = []
@@ -1134,6 +1150,14 @@ class RAGPipeline:
                 continue
 
             upper = stripped.upper()
+            if any(
+                marker in upper
+                for marker in [
+                    "SIMPLE VERSION", "## SIMPLE", "**SIMPLE",
+                ]
+            ):
+                current = plain_summary_lines
+                continue
             if any(
                 marker in upper
                 for marker in [
@@ -1193,7 +1217,8 @@ class RAGPipeline:
                 current.append(stripped.lstrip("- "))
 
         schematic = "\n".join(schematic_lines) if schematic_lines else ""
-        return evidence, inference, speculation, schematic
+        plain_summary = " ".join(plain_summary_lines) if plain_summary_lines else ""
+        return plain_summary, evidence, inference, speculation, schematic
 
     @staticmethod
     def _parse_discovery_output(
