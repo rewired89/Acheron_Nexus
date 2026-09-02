@@ -947,6 +947,23 @@ class RAGPipeline:
             live_sources_fetched=live_count,
         )
 
+    @staticmethod
+    def _extract_text(content_blocks) -> str:
+        """Pull the text out of an Anthropic response's content list.
+
+        Models with extended thinking (e.g. claude-sonnet-5) can return a
+        ThinkingBlock before the actual TextBlock, so content[0] isn't
+        reliably the answer -- ThinkingBlock has no .text attribute at all,
+        which crashed every response ("'ThinkingBlock' object has no
+        attribute 'text'") the moment thinking kicked in. Take the first
+        block that actually has text instead of assuming position 0.
+        """
+        for block in content_blocks or []:
+            text = getattr(block, "text", None)
+            if text:
+                return text
+        return ""
+
     def _generate_with_system(
         self, system_prompt: str, user_prompt: str, max_tokens: int = 2048
     ) -> str:
@@ -974,7 +991,7 @@ class RAGPipeline:
                     messages=[{"role": "user", "content": user_prompt}],
                     max_tokens=max_tokens,
                 )
-                return response.content[0].text if response.content else ""
+                return self._extract_text(response.content)
             else:
                 response = client.chat.completions.create(
                     model=model,
@@ -1105,7 +1122,7 @@ class RAGPipeline:
                     messages=[{"role": "user", "content": user_prompt}],
                     max_tokens=max_tokens,
                 )
-                return response.content[0].text if response.content else ""
+                return self._extract_text(response.content)
             else:
                 response = client.chat.completions.create(
                     model=model,
