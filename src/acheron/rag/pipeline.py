@@ -693,7 +693,14 @@ class RAGPipeline:
         # used below by discover() — that's for deep research, not a quick question.)
         context_str = self._format_context(top_results)
         user_prompt = SHORT_QUERY_TEMPLATE.format(context=context_str, query=question)
-        raw_answer = self._generate_with_system(QUERY_SYSTEM_PROMPT, user_prompt, max_tokens=900)
+        # max_tokens raised from 900: on claude-sonnet-5, adaptive thinking is
+        # on by default and shares this same budget, so 900 risked truncating
+        # the actual answer (or leaving nothing but thinking) before it ever
+        # got written. effort="low" keeps this fast-path fast, per Anthropic's
+        # own guidance for short, non-intelligence-sensitive lookups like this.
+        raw_answer = self._generate_with_system(
+            QUERY_SYSTEM_PROMPT, user_prompt, max_tokens=2048, effort="low"
+        )
 
         # Parse structured sections from the response
         plain_summary, evidence, inference, speculation, schematic = (
@@ -965,9 +972,14 @@ class RAGPipeline:
         return ""
 
     def _generate_with_system(
-        self, system_prompt: str, user_prompt: str, max_tokens: int = 2048
+        self, system_prompt: str, user_prompt: str, max_tokens: int = 2048,
+        effort: str | None = None,
     ) -> str:
-        """Call the LLM with a custom system prompt (for mode-specific prompts)."""
+        """Call the LLM with a custom system prompt (for mode-specific prompts).
+
+        `effort` is Anthropic-only (passed as output_config.effort); ignored
+        on the OpenAI-compatible branch, that API has no equivalent knob.
+        """
         model = self.settings.resolved_llm_model
 
         try:
@@ -982,14 +994,18 @@ class RAGPipeline:
 
         try:
             if self._provider == "anthropic":
-                # No `temperature` here — newer Claude models (e.g. claude-sonnet-5)
+                # No `temperature` here, newer Claude models (e.g. claude-sonnet-5)
                 # reject it as deprecated (400 invalid_request_error). The
                 # OpenAI-compatible branch below still accepts it fine.
+                kwargs = {}
+                if effort:
+                    kwargs["output_config"] = {"effort": effort}
                 response = client.messages.create(
                     model=model,
                     system=system_prompt,
                     messages=[{"role": "user", "content": user_prompt}],
                     max_tokens=max_tokens,
+                    **kwargs,
                 )
                 return self._extract_text(response.content)
             else:
