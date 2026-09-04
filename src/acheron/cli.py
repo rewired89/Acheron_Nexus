@@ -74,6 +74,14 @@ BIO_DB_SOURCES = ("uniprot", "pdb", "alphafold", "ncbi_gene")
 # SubtiWiki's own API returns.
 SUBTIWIKI_DEFAULT_GENES = ("dnaA", "sigB", "comK", "spo0A", "sinR", "degU", "abrB", "codY")
 
+# Default search terms for --source planmine when no --topic is given.
+# PlanMine's search matches gene ID/symbol OR GO term name (see
+# collectors/planmine.py's _search_gene_ids) — mixing well-known
+# S. mediterranea gene names with topic words surfaces both specific
+# genes and, via GO term matching, ion channel / gap junction annotations
+# without needing to already know which gene has them.
+PLANMINE_DEFAULT_TOPICS = ("smedwi-1", "djnos", "innexin", "ion channel", "gap junction")
+
 
 @click.group()
 @click.option("--verbose", "-v", is_flag=True, help="Enable debug logging")
@@ -94,7 +102,7 @@ def main(verbose: bool) -> None:
 @click.option(
     "--source",
     type=click.Choice(
-        ["pubmed", "biorxiv", "arxiv", "physionet", "uniprot", "pdb", "alphafold", "ncbi_gene", "subtiwiki", "all"]
+        ["pubmed", "biorxiv", "arxiv", "physionet", "uniprot", "pdb", "alphafold", "ncbi_gene", "subtiwiki", "planmine", "all"]
     ),
     default="all",
     help="Which source to collect from ('all' = literature sources only; "
@@ -123,10 +131,12 @@ def collect(
         acheron collect --source ncbi_gene -t "KCNQ1" -t "GJA1"
         acheron collect --source alphafold -t "P17302,Q9Y6N1"   # UniProt accessions
         acheron collect --source subtiwiki -t "sigB" -t "comK"
+        acheron collect --source planmine -t "innexin" -t "smedwi-1"
     """
     from acheron.collectors.arxiv import ArxivCollector
     from acheron.collectors.biorxiv import BiorxivCollector
     from acheron.collectors.physionet import PhysioNetCollector
+    from acheron.collectors.planmine import PlanMineCollector
     from acheron.collectors.pubmed import PubMedCollector
     from acheron.collectors.structures import AlphaFoldCollector, PDBCollector
     from acheron.collectors.ncbi_gene import NCBIGeneCollector
@@ -137,6 +147,8 @@ def collect(
         topics = list(topic)
     elif source == "subtiwiki":
         topics = list(SUBTIWIKI_DEFAULT_GENES)
+    elif source == "planmine":
+        topics = list(PLANMINE_DEFAULT_TOPICS)
     elif source in BIO_DB_SOURCES:
         if source == "alphafold":
             console.print(
@@ -168,6 +180,8 @@ def collect(
         collectors.append(("NCBI Gene", NCBIGeneCollector()))
     if source == "subtiwiki":
         collectors.append(("SubtiWiki", SubtiWikiCollector()))
+    if source == "planmine":
+        collectors.append(("PlanMine", PlanMineCollector()))
 
     total_papers = 0
     total_fulltext = 0

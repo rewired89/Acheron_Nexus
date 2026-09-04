@@ -8,7 +8,7 @@ Acheron Nexus is a domain-specific RAG research assistant for bioelectricity
 and biomedical research (planarian regeneration, ion channels, gap
 junctions/innexins, EEG). It collects from literature sources (PubMed,
 bioRxiv, arXiv, PhysioNet) and curated bio-databases (UniProt, RCSB PDB,
-AlphaFold DB, NCBI Gene, SubtiWiki), indexes everything into a local
+AlphaFold DB, NCBI Gene, SubtiWiki, PlanMine), indexes everything into a local
 ChromaDB vector store, and answers questions with grounded, cited
 responses through a FastAPI web UI.
 
@@ -44,8 +44,9 @@ Run the test suite with:
 ```bash
 pytest
 ```
-Tests are offline and fixture-based (see `tests/test_bio_collectors.py` /
-`tests/test_subtiwiki_collector.py` for the pattern collectors follow) —
+Tests are offline and fixture-based (see `tests/test_bio_collectors.py`,
+`tests/test_subtiwiki_collector.py`, and `tests/test_planmine_collector.py`
+for the pattern collectors follow) —
 no live network calls, no live LLM calls. A `VectorStore` test does spin up
 a real ChromaDB instance with local embeddings, which is slow on first run
 (downloads/verifies the embedding model) but makes no external API calls
@@ -75,9 +76,17 @@ beyond that.
   new one.
 - **`organism` / `source_type` fields** on `Paper`/`TextChunk` distinguish
   curated-database records (`SourceType.CURATED_DB`, e.g. UniProt,
-  SubtiWiki) from literature (`SourceType.LITERATURE`). Set these on any
-  new non-literature collector's `Paper` objects, and they'll flow through
-  `chunker.py` to ChromaDB metadata automatically.
+  SubtiWiki, PlanMine) from literature (`SourceType.LITERATURE`). Set
+  these on any new non-literature collector's `Paper` objects, and
+  they'll flow through `chunker.py` to ChromaDB metadata automatically.
+- **Curated-database sources are not equally complete.** SubtiWiki is a
+  hand-curated wiki with regulon/pathway structure; PlanMine (InterMine-
+  based) is sequence/annotation-centric with no phenotype, pathway, or
+  regulon classes at all — see `collectors/planmine.py`'s module
+  docstring for the specifics. Any future confidence-scoring logic over
+  collected records needs to account for this per-source completeness
+  asymmetry rather than treating "field is empty" the same way across
+  every curated database.
 - **Do not touch `rag/pipeline.py`, `rag/hypothesis_engine.py`, or
   `rag/ledger.py`** when the task is scoped to a new data collector —
   those are Discovery/Compute-layer files with their own review bar; a

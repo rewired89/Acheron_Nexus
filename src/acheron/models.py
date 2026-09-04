@@ -23,6 +23,7 @@ class PaperSource(str, Enum):
     ALPHAFOLD = "alphafold"
     NCBI_GENE = "ncbi_gene"
     SUBTIWIKI = "subtiwiki"
+    PLANMINE = "planmine"
 
 
 class SourceType(str, Enum):

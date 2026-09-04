@@ -26,6 +26,7 @@ to a citation or a real API response).
 | `structures.py` | RCSB PDB + AlphaFold DB | Curated 3D structure data |
 | `ncbi_gene.py` | NCBI Gene | Curated genomic context |
 | `subtiwiki.py` | SubtiWiki (uni-goettingen.de) | Curated *B. subtilis* gene/protein/regulatory data — locus tags, function, protein-protein interactions, regulon/TF relationships, per-condition expression values |
+| `planmine.py` | PlanMine (planmine.mpinat.mpg.de, InterMine-based) | *S. mediterranea* gene/homology/RNAi-expression/protein-domain data — see the module docstring's "DATA COMPLETENESS ASYMMETRY vs. SubtiWiki" section before using this data in any confidence-scoring logic: no phenotype class, no reliable gene symbols, no pathway/regulon structure exist in this source at all |
 
 Every collector implements `search(query, max_results) -> list[Paper]` and
 converts its source's native response into a `Paper` whose `abstract` is a
@@ -104,7 +105,7 @@ RAG pipeline directly. See each file's docstring for its specific model.
 5. Wire it into `cli.py`'s `collect` command: add to the `--source` choice
    list, add an import, add a default-topics branch if the source needs
    different default queries than `GENE_PROTEIN_TOPICS`.
-6. Add offline fixture-based parsing tests (see `tests/test_bio_collectors.py`
-   and `tests/test_subtiwiki_collector.py` for the pattern) plus, if the
-   source represents a genuinely new record shape, a small end-to-end
-   ChromaDB ingestion test.
+6. Add offline fixture-based parsing tests (see `tests/test_bio_collectors.py`,
+   `tests/test_subtiwiki_collector.py`, and `tests/test_planmine_collector.py`
+   for the pattern) plus, if the source represents a genuinely new record
+   shape, a small end-to-end ChromaDB ingestion test.
