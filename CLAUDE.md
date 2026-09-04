@@ -93,3 +93,21 @@ beyond that.
   new collector only needs Library-layer (`collectors/`) and
   Index-layer (`extraction/`, `vectorstore/`) changes plus `models.py`
   schema additions and `cli.py` wiring.
+- **Parameter extraction (`extraction/parameter_extractor.py`)** turns
+  indexed RAG chunks into structured `(subject) -[relationship]->
+  (object)` records for downstream simulation use — see the module's own
+  docstring for the full design. It deliberately reuses
+  `rag/science_filter.py`'s `score_evidence()` as its only confidence
+  source (bucketed into HIGH/MEDIUM/LOW) rather than building a second
+  scoring system, and stores records as flat JSON files under
+  `data_dir/parameters/`, mirroring `rag/ledger.py`'s file-per-entry
+  pattern rather than mixing them into ChromaDB's text-chunk collection.
+  A known, intentionally-not-patched limitation:
+  `science_filter._ORGANISM_TIERS` has no bacterial tier, so every
+  SubtiWiki-derived record scores `organism_match=0.0` regardless of its
+  real scientific merit, while PlanMine records correctly match the
+  existing "planarian" tier — `scripts/validate_parameters.py` reports
+  this asymmetry every run rather than hiding it. Run
+  `python scripts/validate_parameters.py` after indexing to see what
+  fraction of extracted records carry a cited rate/affinity value versus
+  an explicit `UNKNOWN`, broken down per organism.

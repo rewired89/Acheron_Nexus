@@ -40,6 +40,7 @@ whether the source is keyless).
 |---|---|
 | `chunker.py` | `TextChunker.chunk_paper(Paper) -> list[TextChunk]`; carries `organism`/`source_type`/`url`/`source` from `Paper` onto each chunk's metadata |
 | `pdf_parser.py` | PyMuPDF/pdfplumber-based PDF text + table extraction |
+| `parameter_extractor.py` | `extract_from_chunk(TextChunk) -> list[ParameterRecord]` / `extract_from_store(VectorStore) -> list[ParameterRecord]`: turns indexed chunks into structured `(subject) -[relationship_type]-> (object)` facts with a cited `rate_or_affinity` or explicit `UNKNOWN`. Confidence tier is a thin bucketing of `rag/science_filter.py`'s existing `score_evidence()` — no second scorer. `ParameterStore` persists records as flat JSON under `data_dir/parameters/` (mirrors `rag/ledger.py`'s pattern). Source-aware: SubtiWiki- and PlanMine-specific regex parsers target those two collectors' own known structured-text layout; every other source falls back to a heuristic literature parser (flagged `heuristic=True`). |
 
 ## `vectorstore/` — Layer 2 (Index): embedding storage and retrieval
 
@@ -89,7 +90,7 @@ RAG pipeline directly. See each file's docstring for its specific model.
 |---|---|
 | `nexus_ingest/` | Enhanced PMC/PubMed full-text ingestion used by `collectors/pubmed.py` |
 | `simulations/` | Standalone bioelectric/circuit simulation scripts (Acheron-side, not Nexus's RAG) |
-| `scripts/` | One-off utility scripts |
+| `scripts/` | One-off utility scripts, including `validate_parameters.py` (per-organism cited-vs-UNKNOWN report for the extracted parameter corpus) |
 | `tests/` | Pytest suite — one file per module/feature, offline fixture-based (no live network calls) |
 
 ## Adding a new collector (checklist)
