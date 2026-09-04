@@ -87,6 +87,8 @@ class VectorStore:
                         "source": c.metadata.get("source", ""),
                         "date": c.metadata.get("date", ""),
                         "url": c.metadata.get("url", ""),
+                        "organism": c.organism or "",
+                        "source_type": c.source_type or "",
                         # Evidence span fields
                         "source_file": c.source_file,
                         "span_start": c.span_start,

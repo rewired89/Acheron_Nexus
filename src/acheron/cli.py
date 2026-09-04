@@ -65,6 +65,15 @@ GENE_PROTEIN_TOPICS = {
 
 BIO_DB_SOURCES = ("uniprot", "pdb", "alphafold", "ncbi_gene")
 
+# Default gene names for --source subtiwiki when no --topic is given.
+# SubtiWiki (B. subtilis) has its own gene-name space — the GENE_PROTEIN_TOPICS
+# terms above are gap-junction/ion-channel oriented and mean nothing to it, so
+# it gets its own default list rather than joining BIO_DB_SOURCES. These are
+# well-known, canonical B. subtilis regulatory genes, used only as search
+# terms — the collector never asserts anything about them beyond what
+# SubtiWiki's own API returns.
+SUBTIWIKI_DEFAULT_GENES = ("dnaA", "sigB", "comK", "spo0A", "sinR", "degU", "abrB", "codY")
+
 
 @click.group()
 @click.option("--verbose", "-v", is_flag=True, help="Enable debug logging")
@@ -85,7 +94,7 @@ def main(verbose: bool) -> None:
 @click.option(
     "--source",
     type=click.Choice(
-        ["pubmed", "biorxiv", "arxiv", "physionet", "uniprot", "pdb", "alphafold", "ncbi_gene", "all"]
+        ["pubmed", "biorxiv", "arxiv", "physionet", "uniprot", "pdb", "alphafold", "ncbi_gene", "subtiwiki", "all"]
     ),
     default="all",
     help="Which source to collect from ('all' = literature sources only; "
@@ -113,6 +122,7 @@ def collect(
         acheron collect --source pdb -t "connexin gap junction channel"
         acheron collect --source ncbi_gene -t "KCNQ1" -t "GJA1"
         acheron collect --source alphafold -t "P17302,Q9Y6N1"   # UniProt accessions
+        acheron collect --source subtiwiki -t "sigB" -t "comK"
     """
     from acheron.collectors.arxiv import ArxivCollector
     from acheron.collectors.biorxiv import BiorxivCollector
@@ -120,10 +130,13 @@ def collect(
     from acheron.collectors.pubmed import PubMedCollector
     from acheron.collectors.structures import AlphaFoldCollector, PDBCollector
     from acheron.collectors.ncbi_gene import NCBIGeneCollector
+    from acheron.collectors.subtiwiki import SubtiWikiCollector
     from acheron.collectors.uniprot import UniProtCollector
 
     if topic:
         topics = list(topic)
+    elif source == "subtiwiki":
+        topics = list(SUBTIWIKI_DEFAULT_GENES)
     elif source in BIO_DB_SOURCES:
         if source == "alphafold":
             console.print(
@@ -153,6 +166,8 @@ def collect(
         collectors.append(("AlphaFold DB", AlphaFoldCollector()))
     if source == "ncbi_gene":
         collectors.append(("NCBI Gene", NCBIGeneCollector()))
+    if source == "subtiwiki":
+        collectors.append(("SubtiWiki", SubtiWikiCollector()))
 
     total_papers = 0
     total_fulltext = 0

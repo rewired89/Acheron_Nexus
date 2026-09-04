@@ -253,4 +253,6 @@ class TextChunker:
             span_end=span_end,
             excerpt=_make_excerpt(text),
             xpath=xpath,
+            organism=paper.organism,
+            source_type=paper.source_type,
         )

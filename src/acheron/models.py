@@ -22,6 +22,14 @@ class PaperSource(str, Enum):
     PDB = "pdb"
     ALPHAFOLD = "alphafold"
     NCBI_GENE = "ncbi_gene"
+    SUBTIWIKI = "subtiwiki"
+
+
+class SourceType(str, Enum):
+    """Whether a record came from a curated database or from literature."""
+
+    CURATED_DB = "curated_db"
+    LITERATURE = "literature"
 
 
 class EpistemicTag(str, Enum):
@@ -87,6 +95,8 @@ class Paper(BaseModel):
     citation_count: Optional[int] = None
     collected_at: datetime = Field(default_factory=datetime.utcnow)
     provenance: Optional[SourceProvenance] = None
+    organism: str = Field(default="", description='e.g. "B. subtilis", "planarian"')
+    source_type: Optional[SourceType] = None
 
     def display_citation(self) -> str:
         """Return a human-readable citation string."""
@@ -144,6 +154,8 @@ class TextChunk(BaseModel):
     span_end: int = 0
     excerpt: str = ""  # short excerpt (200-400 chars) for display
     xpath: str = ""  # location in structured document (e.g., NXML)
+    organism: str = Field(default="", description='e.g. "B. subtilis", "planarian"')
+    source_type: Optional[SourceType] = None
 
 
 # ======================================================================
