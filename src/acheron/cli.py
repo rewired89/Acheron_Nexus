@@ -975,16 +975,51 @@ def _display_analysis_result(result):
 @click.option("--search", "-s", default=None, help="Search entries by keyword")
 @click.option("--export", "-e", default=None, type=click.Path(), help="Export to JSON file")
 @click.option("--entry-id", default=None, help="View a specific entry")
+@click.option(
+    "--record-outcome", default=None,
+    help="Attach a real experimental outcome to --entry-id (a MODE 6 prediction "
+    "entry). Requires --result.",
+)
+@click.option(
+    "--result", type=click.Choice(["match", "mismatch"]), default=None,
+    help="Whether the real outcome matched the prediction. Required with --record-outcome.",
+)
+@click.option(
+    "--force", is_flag=True,
+    help="With --record-outcome: overwrite an already-recorded outcome (should be rare).",
+)
 def ledger(
     tag: str | None,
     search: str | None,
     export: str | None,
     entry_id: str | None,
+    record_outcome: str | None,
+    result: str | None,
+    force: bool,
 ) -> None:
     """View and search the experiment ledger."""
     from acheron.rag.ledger import ExperimentLedger
 
     ledger_store = ExperimentLedger()
+
+    if record_outcome is not None:
+        if not entry_id:
+            console.print("[red]--record-outcome requires --entry-id.[/]")
+            return
+        if result is None:
+            console.print("[red]--record-outcome requires --result [match|mismatch].[/]")
+            return
+        try:
+            entry = ledger_store.record_actual_outcome(
+                entry_id, actual_outcome=record_outcome,
+                match=(result == "match"), force=force,
+            )
+        except ValueError as e:
+            console.print(f"[red]{e}[/]")
+            return
+        console.print(f"[bold green]Actual outcome recorded for {entry.entry_id}:[/] {result}")
+        _display_ledger_entry(entry)
+        return
 
     if export:
         count = ledger_store.export_all(Path(export))
@@ -1050,7 +1085,109 @@ def _display_ledger_entry(entry):
     if entry.variables:
         for v in entry.variables:
             console.print(f"  [cyan]{v.name}[/] = {v.value} ({v.unit}) {v.source_ref}")
+
+    if entry.entry_type == "prediction":
+        console.print(Panel(
+            f"[bold]Organism:[/] {entry.organism}\n"
+            f"[bold]Perturbation:[/] {entry.perturbation_gene}\n"
+            f"[bold]Predicted confidence:[/] {entry.predicted_confidence_tier} "
+            f"(score={entry.predicted_confidence_score:.2f}, "
+            f"{entry.predicted_cited_params}/{entry.predicted_total_params} cited)\n"
+            f"[bold]Actual outcome:[/] {entry.actual_outcome or '(not yet recorded)'}\n"
+            + (
+                f"[bold]Match:[/] {'YES' if entry.match else 'NO'} "
+                f"(entered {entry.actual_outcome_entered_at})"
+                if entry.actual_outcome is not None else ""
+            ),
+            title="[bold magenta]MODE 6 Prediction[/]",
+            border_style="magenta",
+        ))
+        if entry.prediction_summary:
+            console.print(Panel(
+                entry.prediction_summary,
+                title="[dim]Prediction Summary (as logged)[/]",
+                border_style="dim",
+            ))
+
     console.print(f"\n[dim]Source papers: {len(entry.source_ids)}[/]")
+
+
+# ======================================================================
+# REPORT — predicted-vs-actual accuracy (real forward-tested predictions only)
+# ======================================================================
+@main.command()
+@click.option(
+    "--accuracy", is_flag=True,
+    help="Report real predicted-vs-actual accuracy: overall %, broken down by "
+    "organism and by confidence tier (cited vs UNKNOWN parameter reliance).",
+)
+def report(accuracy: bool) -> None:
+    """Report on the experiment ledger's predicted-vs-actual track record.
+
+    This is the ONLY accuracy number this project should show as its real
+    predictive track record: it counts exclusively MODE 6 predictions that
+    were logged (acheron simulate --model prediction --log) BEFORE a real
+    test ran, and later had a real outcome attached (acheron ledger
+    --record-outcome). It is never a backtested or literature-matched
+    figure -- if nothing has been resolved yet, this says so explicitly
+    instead of reporting a different number in its place.
+    """
+    from acheron.rag.ledger import ExperimentLedger, compute_accuracy_report
+
+    if not accuracy:
+        console.print("[yellow]Nothing to report -- pass --accuracy.[/]")
+        return
+
+    entries = ExperimentLedger().prediction_entries()
+    report_data = compute_accuracy_report(entries)
+
+    if report_data["resolved_count"] == 0:
+        console.print(Panel(
+            report_data["note"],
+            title="[bold yellow]No Resolved Predictions Yet[/]",
+            border_style="yellow",
+        ))
+        unresolved = [e for e in entries if e.actual_outcome is None]
+        if unresolved:
+            console.print(
+                f"\n[dim]{len(unresolved)} prediction(s) logged but awaiting a real "
+                f"outcome -- record with 'acheron ledger --entry-id <id> "
+                f"--record-outcome \"...\" --result match|mismatch'.[/]"
+            )
+        return
+
+    overall = report_data["overall"]
+    console.print(Panel(
+        f"[bold]Resolved predictions:[/] {report_data['resolved_count']}\n"
+        f"[bold]Overall accuracy:[/] {overall['accuracy_pct']}% "
+        f"({overall['matches']}/{overall['n']} matched)",
+        title="[bold cyan]Real Predicted-vs-Actual Accuracy[/]",
+        border_style="cyan",
+    ))
+
+    organism_table = Table(title="By Organism")
+    organism_table.add_column("Organism")
+    organism_table.add_column("N", justify="right")
+    organism_table.add_column("Matches", justify="right")
+    organism_table.add_column("Accuracy", justify="right")
+    for organism, bucket in report_data["by_organism"].items():
+        organism_table.add_row(
+            organism, str(bucket["n"]), str(bucket["matches"]), f"{bucket['accuracy_pct']}%"
+        )
+    console.print(organism_table)
+
+    tier_table = Table(
+        title="By Confidence Tier (cited vs UNKNOWN parameter reliance)"
+    )
+    tier_table.add_column("Confidence Tier")
+    tier_table.add_column("N", justify="right")
+    tier_table.add_column("Matches", justify="right")
+    tier_table.add_column("Accuracy", justify="right")
+    for tier, bucket in report_data["by_confidence_tier"].items():
+        tier_table.add_row(
+            tier, str(bucket["n"]), str(bucket["matches"]), f"{bucket['accuracy_pct']}%"
+        )
+    console.print(tier_table)
 
 
 # ======================================================================
@@ -1200,6 +1337,13 @@ def stats() -> None:
     "--output", "-o", type=click.Path(), default=None,
     help="Write full result JSON to this path",
 )
+@click.option(
+    "--log", is_flag=True,
+    help="--model prediction only: log this prediction to the experiment ledger "
+    "BEFORE any real test runs, so 'acheron ledger --record-outcome' and "
+    "'acheron report --accuracy' can later compare it to a real result. "
+    "Off by default -- only log the prediction you actually intend to test.",
+)
 def simulate(
     model: str,
     organism: str,
@@ -1212,6 +1356,7 @@ def simulate(
     max_dm_fraction: float,
     no_bioelectric: bool,
     output: str | None,
+    log: bool,
 ) -> None:
     """Simulate a gene perturbation's downstream effect using Phase 3's cited parameter store.
 
@@ -1255,7 +1400,7 @@ def simulate(
         return
 
     # model == "prediction"
-    from acheron.rag.hypothesis_engine import run_prediction_mode
+    from acheron.rag.hypothesis_engine import format_prediction_context, run_prediction_mode
 
     try:
         status_msg = (
@@ -1286,6 +1431,29 @@ def simulate(
     if output:
         Path(output).write_text(result.model_dump_json(indent=2), encoding="utf-8")
         console.print(f"\n[dim]Full result (including trajectories) written to {output}[/]")
+
+    if log:
+        from acheron.rag.ledger import ExperimentLedger
+
+        bio = result.bioelectric
+        cited_params = result.grn.n_cited_edges + (
+            1 if bio and bio.channel_class_cited else 0
+        )
+        total_params = result.grn.n_total_edges + (1 if bio else 0)
+        entry = ExperimentLedger().record_prediction(
+            organism=result.organism,
+            perturbation_gene=result.perturbation_gene,
+            confidence_score=result.overall_confidence_score,
+            confidence_tier=result.overall_confidence_tier.value,
+            cited_params=cited_params,
+            total_params=total_params,
+            prediction_summary=format_prediction_context(result),
+        )
+        console.print(
+            f"\n[bold green]Logged to experiment ledger:[/] {entry.entry_id}\n"
+            f"[dim]Record the real outcome later with: acheron ledger "
+            f"--entry-id {entry.entry_id} --record-outcome \"...\" --result match|mismatch[/]"
+        )
 
 
 def _display_prediction_result(result) -> None:

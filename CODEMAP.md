@@ -68,7 +68,7 @@ whether the source is keyless).
 | `live_retrieval.py` | On-demand PubMed/bioRxiv/arXiv fetch when local evidence is weak |
 | `experiment_designer.py` | Minimal Viable Experiment (MVE) proposal generation |
 | `bio_units.py` | Biological Information Module (BIM) quantitative spec framework |
-| `ledger.py` | Persistent log of discovery-loop findings (the "Ledger" tab) |
+| `ledger.py` | Persistent log of discovery-loop findings (the "Ledger" tab), plus predicted-vs-actual tracking for MODE 6 predictions: `record_prediction()` logs a prediction's organism/gene/confidence/cited-vs-total counts BEFORE a real test runs; `record_actual_outcome()` attaches a real, manually-entered result afterward (refuses to touch a non-prediction entry or silently overwrite one already resolved); `compute_accuracy_report()` computes real predicted-vs-actual accuracy — by organism and by confidence tier — over ONLY entries that went through both calls (see `acheron report --accuracy`). Takes plain values, not `PredictionModeResult`, so this stays a light leaf module `rag/hypothesis_engine.py` depends on, not the reverse. |
 
 ## `reasoning/` — standalone quantitative/simulation modules (numbered per an internal spec)
 

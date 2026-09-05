@@ -348,7 +348,16 @@ class RAGResponse(BaseModel):
 # Experiment ledger
 # ======================================================================
 class LedgerEntry(BaseModel):
-    """A single entry in the experiment ledger."""
+    """A single entry in the experiment ledger.
+
+    `entry_type` distinguishes a plain discovery-loop entry (the original
+    design, "discovery") from a MODE 6 prediction logged BEFORE a real
+    test ran ("prediction") -- see rag/ledger.py's `record_prediction()` /
+    `record_actual_outcome()`. Accuracy reporting (`acheron report
+    --accuracy`) only ever looks at "prediction"-type entries that have
+    since had a real `actual_outcome` attached; every predicted-vs-actual
+    field below is None on every other entry.
+    """
 
     entry_id: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
@@ -359,6 +368,19 @@ class LedgerEntry(BaseModel):
     source_ids: list[str] = Field(default_factory=list)
     notes: str = ""
     tags: list[str] = Field(default_factory=list)
+
+    # --- Predicted-vs-actual tracking (MODE 6 predictions only) ---
+    entry_type: str = "discovery"  # "discovery" | "prediction"
+    organism: Optional[str] = None
+    perturbation_gene: Optional[str] = None
+    prediction_summary: Optional[str] = None
+    predicted_confidence_score: Optional[float] = None
+    predicted_confidence_tier: Optional[str] = None
+    predicted_cited_params: Optional[int] = None
+    predicted_total_params: Optional[int] = None
+    actual_outcome: Optional[str] = None
+    actual_outcome_entered_at: Optional[datetime] = None
+    match: Optional[bool] = None
 
 
 # ======================================================================

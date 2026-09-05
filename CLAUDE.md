@@ -166,3 +166,29 @@ beyond that.
   other five modes; `PredictionModeResult`/`_tier_for_fraction()` are kept
   local to `hypothesis_engine.py`, same convention `parameter_extractor.py`
   and `grn_model.py` use for their own result shapes.
+- **Predicted-vs-actual tracking (`rag/ledger.py`, `acheron report
+  --accuracy`)** is the ONLY accuracy figure this project may present as
+  its real predictive track record — never a backtested or literature-
+  matched number reported as if it were this one. A MODE 6 prediction is
+  logged via `ExperimentLedger.record_prediction()` (plain values only:
+  organism, gene, confidence score/tier, cited-vs-total parameter counts,
+  and `format_prediction_context(result)` as the summary — never the
+  `PredictionModeResult` object itself, so `ledger.py` stays a light leaf
+  module `hypothesis_engine.py`/`cli.py` depend on, not the reverse) at
+  `acheron simulate --model prediction --log` time, which sets that
+  entry's `timestamp` BEFORE any real test runs. A real, manually-entered
+  result is attached later via `acheron ledger --entry-id <id>
+  --record-outcome "..." --result match|mismatch`, which sets
+  `actual_outcome_entered_at` and refuses (unless `--force`) to silently
+  overwrite an already-resolved entry, and refuses entirely on any entry
+  that isn't `entry_type == "prediction"`. `compute_accuracy_report()`
+  computes accuracy ONLY over entries that have been through both calls;
+  with zero resolved entries it returns an explicit explanatory note
+  instead of a number, and `acheron report --accuracy` prints that note
+  rather than inventing a placeholder percentage. Its "cited vs UNKNOWN
+  parameters" breakdown reuses `predicted_confidence_tier`
+  (high/medium/low), the same cited-ratio bucketing used everywhere else
+  in this codebase, rather than a second threshold invented for this
+  report alone. `--log` on `simulate --model prediction` defaults to
+  off — only the prediction a user actually intends to test in the wet
+  lab should ever enter this ledger, not every parameter-sweep run.

@@ -61,7 +61,9 @@ acheron serve
 | `acheron add paper.pdf` | Add a local PDF manually |
 | `acheron stats` | Show collection statistics |
 | `acheron simulate --model grn --organism <name> --perturbation <gene>` | Simulate a gene knockdown's downstream effect using cited parameters extracted from the Library (`pip install -e ".[simulation]"` first) |
-| `acheron simulate --model prediction --organism <name> --perturbation <gene>` | MODE 6: the same GRN simulation plus a real BETSE bioelectric run, combined into one confidence-scored prediction with a fed-through wet-lab protocol (`pip install -e ".[simulation]"` first; runs real BETSE, takes ~1-2 minutes) |
+| `acheron simulate --model prediction --organism <name> --perturbation <gene>` | MODE 6: the same GRN simulation plus a real BETSE bioelectric run, combined into one confidence-scored prediction with a fed-through wet-lab protocol (`pip install -e ".[simulation]"` first; runs real BETSE, takes ~1-2 minutes). Add `--log` to log it to the experiment ledger before a real test runs. |
+| `acheron ledger --entry-id <id> --record-outcome "..." --result match\|mismatch` | Attach a real, manually-entered experimental result to a previously-logged prediction |
+| `acheron report --accuracy` | Real predicted-vs-actual accuracy (overall %, by organism, by cited-vs-UNKNOWN confidence tier) — only counts predictions logged before a real test and later resolved with a real outcome; never a backtested/literature-matched number |
 | `acheron serve` | Start the web interface |
 
 The web interface (`acheron serve`) has four tabs: **Query** (ask + Discover/Analyze modes), **Library** (browse/search all indexed records with a per-source breakdown), **Ledger** (past discovery/analysis runs), and **Data Sources** (what each collector is and how to pull more of it in).
