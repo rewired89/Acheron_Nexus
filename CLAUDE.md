@@ -129,3 +129,40 @@ beyond that.
   only reads from the parameter store; it does not modify `extraction/`,
   `rag/`, or the top-level `simulations/` directory (Acheron-side BETSE
   scripts, unaffected by this Nexus-side addition).
+- **Bioelectric simulation (`simulation/betse_model.py`)** wraps a real
+  `betse` CLI run (not a reimplemented approximation) to predict a Vmem
+  shift from an ion-channel-class perturbation, run twice (baseline +
+  perturbed) so `delta_vmem_mV` is a real difference between two full
+  BETSE runs, not a single-run guess. Only Na/K are supported (the only
+  channel classes with a pre-populated dynamic entry in BETSE's own
+  default config template) — Ca/Cl raise `ChannelClassUnsupported` rather
+  than hand-authoring biophysical parameters with no cited source.
+  `infer_channel_class()` maps a gene to a channel class only via a
+  literal keyword match against that gene's own cited `evidence_text`
+  (e.g. "potassium", "k+") — never from the gene name alone, since BETSE
+  itself has no concept of genes, only ion-channel biophysics.
+- **MODE 6 / Prediction (`rag/hypothesis_engine.py`'s `run_prediction_mode()`,
+  `acheron simulate --model prediction`)** is the one hypothesis-engine
+  mode that is not purely an LLM prompt: it deterministically runs
+  `simulation/grn_model.py` and `simulation/betse_model.py` for the same
+  perturbation, then derives ONE confidence score as (cited GRN edges +
+  1-if-the-bioelectric-channel-mapping-was-cited) / (total GRN edges +
+  1-if-the-bioelectric-leg-ran) — never a separately-judged number, and
+  never counting `decay_rate`/`knockdown_fraction`/`max_dm_fraction`
+  themselves (those are engineering dials, not cited-or-not evidence).
+  `PREDICTION_PROMPT` (MODE 6's system prompt) instructs the LLM to
+  narrate this already-computed result, explicitly split into "Predicted
+  From Cited Data" vs. "Predicted From Assumed Defaults" sections, and
+  forbids it from recomputing or inventing any number — the LLM call is
+  optional narration around real numbers, not their source.
+  `run_prediction_mode()` feeds `required_measurements=["vmem"]` (when the
+  bioelectric leg ran) into the existing `experiment_designer.py`'s
+  `propose_experiment()`; since that module's template catalog is
+  planarian-only (`vmem_imaging_post_amputation()` /
+  `gap_junction_modulation_regeneration()`), a returned protocol for a
+  non-planarian organism (e.g. B. subtilis) carries an explicit
+  organism-mismatch caveat rather than being presented as directly
+  applicable. `NexusMode.PREDICTION` lives in `models.py` alongside the
+  other five modes; `PredictionModeResult`/`_tier_for_fraction()` are kept
+  local to `hypothesis_engine.py`, same convention `parameter_extractor.py`
+  and `grn_model.py` use for their own result shapes.

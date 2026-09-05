@@ -58,6 +58,7 @@ class NexusMode(str, Enum):
     SYNTHESIS = "synthesis"  # MODE 3: systems synthesis / design
     DECISION = "decision"  # MODE 4: engineering verdict (verdict-first)
     TUTOR = "tutor"  # MODE 5: educational explanation with glossary/analogies
+    PREDICTION = "prediction"  # MODE 6: combined GRN + bioelectric simulation prediction
 
 
 # ======================================================================

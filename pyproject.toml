@@ -72,6 +72,11 @@ simulation = [
     # driven backend doesn't use.
     "antimony>=3.0",
     "libroadrunner>=2.1",
+    # Bioelectric simulation backend (src/acheron/simulation/betse_model.py):
+    # shells out to the real BETSE CLI. Validated during development at
+    # BETSE 1.5.0 -- a full config+seed+init+sim cycle on its default
+    # ~225-cell cluster completes in well under a minute.
+    "betse>=1.5.0",
 ]
 interface = [
     # Whisper STT (choose one)

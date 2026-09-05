@@ -1157,9 +1157,10 @@ def stats() -> None:
 @main.command()
 @click.option(
     "--model",
-    type=click.Choice(["grn"]),
+    type=click.Choice(["grn", "prediction"]),
     default="grn",
-    help="Simulation backend (currently only 'grn': gene-regulatory-network)",
+    help="Simulation backend: 'grn' (gene-regulatory-network only) or "
+    "'prediction' (grn + real BETSE bioelectric leg, MODE 6)",
 )
 @click.option(
     "--organism", required=True,
@@ -1180,6 +1181,22 @@ def stats() -> None:
     help="Max graph hops from the perturbed gene to include",
 )
 @click.option(
+    "--channel-class", default=None,
+    type=click.Choice(["Na", "K"]),
+    help="--model prediction only: ion-channel class to perturb in BETSE. "
+    "If omitted, inferred from cited evidence text (e.g. 'potassium'), or "
+    "the bioelectric leg runs as an unperturbed baseline.",
+)
+@click.option(
+    "--max-dm-fraction", default=0.1, type=float,
+    help="--model prediction only: fraction of default channel conductance "
+    "remaining after the perturbation (0=fully blocked, default 0.1)",
+)
+@click.option(
+    "--no-bioelectric", is_flag=True,
+    help="--model prediction only: skip the BETSE leg (GRN-only prediction)",
+)
+@click.option(
     "--output", "-o", type=click.Path(), default=None,
     help="Write full result JSON to this path",
 )
@@ -1191,6 +1208,9 @@ def simulate(
     duration: float,
     n_points: int,
     max_hops: int,
+    channel_class: str | None,
+    max_dm_fraction: float,
+    no_bioelectric: bool,
     output: str | None,
 ) -> None:
     """Simulate a gene perturbation's downstream effect using Phase 3's cited parameter store.
@@ -1199,34 +1219,130 @@ def simulate(
     a cited rate constant (from extracted ParameterRecords) vs. an explicitly
     flagged placeholder default -- never a silently invented number.
 
-    Example:
+    Examples:
         acheron simulate --model grn --organism "B. subtilis" --perturbation yugO
+        acheron simulate --model prediction --organism "B. subtilis" --perturbation yugO
     """
-    from acheron.simulation.grn_model import GRNBackendUnavailable, simulate_grn
+    from acheron.simulation.betse_model import BETSEBackendUnavailable
+    from acheron.simulation.grn_model import GRNBackendUnavailable
+
+    if model == "grn":
+        from acheron.simulation.grn_model import simulate_grn
+
+        try:
+            status_msg = f"[bold cyan]Simulating GRN perturbation of '{perturbation}'..."
+            with console.status(status_msg):
+                result = simulate_grn(
+                    organism=organism,
+                    perturbation_gene=perturbation,
+                    knockdown_fraction=knockdown_fraction,
+                    duration=duration,
+                    n_points=n_points,
+                    max_hops=max_hops,
+                )
+        except GRNBackendUnavailable as e:
+            console.print(f"[red]{e}[/]")
+            return
+        except ValueError as e:
+            console.print(f"[red]{e}[/]")
+            return
+
+        _display_grn_result(result)
+
+        if output:
+            Path(output).write_text(result.model_dump_json(indent=2), encoding="utf-8")
+            console.print(f"\n[dim]Full result (including trajectories) written to {output}[/]")
+        return
+
+    # model == "prediction"
+    from acheron.rag.hypothesis_engine import run_prediction_mode
 
     try:
-        status_msg = f"[bold cyan]Simulating {model.upper()} perturbation of '{perturbation}'..."
+        status_msg = (
+            f"[bold cyan]Running combined GRN+BETSE prediction for '{perturbation}' "
+            f"(this runs real BETSE simulations, can take ~1-2 minutes)..."
+        )
         with console.status(status_msg):
-            result = simulate_grn(
+            result = run_prediction_mode(
                 organism=organism,
                 perturbation_gene=perturbation,
+                channel_class=channel_class,
+                max_dm_fraction=max_dm_fraction,
                 knockdown_fraction=knockdown_fraction,
+                run_bioelectric=not no_bioelectric,
                 duration=duration,
                 n_points=n_points,
                 max_hops=max_hops,
             )
-    except GRNBackendUnavailable as e:
+    except (GRNBackendUnavailable, BETSEBackendUnavailable) as e:
         console.print(f"[red]{e}[/]")
         return
     except ValueError as e:
         console.print(f"[red]{e}[/]")
         return
 
-    _display_grn_result(result)
+    _display_prediction_result(result)
 
     if output:
         Path(output).write_text(result.model_dump_json(indent=2), encoding="utf-8")
         console.print(f"\n[dim]Full result (including trajectories) written to {output}[/]")
+
+
+def _display_prediction_result(result) -> None:
+    """Display a PredictionModeResult (MODE 6): combined GRN+BETSE outcome,
+    the cited-vs-assumed split, and the fed-through experiment protocol."""
+    tier_colors = {"high": "green", "medium": "yellow", "low": "red"}
+    tier_color = tier_colors.get(result.overall_confidence_tier.value, "dim")
+    bio = result.bioelectric
+    bio_line = (
+        f"Bioelectric: Vmem {bio.baseline_vmem_mV:.2f} -> {bio.perturbed_vmem_mV:.2f} mV "
+        f"(channel {bio.channel_class or 'none'}, "
+        f"{'cited' if bio.channel_class_cited else 'assumed'})"
+        if bio else "Bioelectric: did not run (see warnings)"
+    )
+    console.print(Panel(
+        f"[bold]Organism:[/] {result.organism}\n"
+        f"[bold]Perturbation:[/] {result.perturbation_gene}\n"
+        f"[bold]GRN:[/] {result.grn.n_cited_edges}/{result.grn.n_total_edges} edges cited\n"
+        f"[bold]{bio_line}[/]\n"
+        f"[bold]Overall confidence:[/] "
+        f"[{tier_color}]{result.overall_confidence_tier.value}[/{tier_color}] "
+        f"(score={result.overall_confidence_score:.2f})",
+        title="[bold cyan]Prediction (MODE 6): GRN + Bioelectric[/]",
+        border_style="cyan",
+    ))
+
+    if result.warnings:
+        console.print(Panel(
+            "\n".join(f"  - {w}" for w in result.warnings),
+            title="[bold yellow]WARNINGS[/]",
+            border_style="yellow",
+        ))
+
+    console.print(Panel(
+        "\n".join(f"  - {c}" for c in result.cited_predictions) or "  (none)",
+        title="[bold green]PREDICTED FROM CITED DATA[/]",
+        border_style="green",
+    ))
+    console.print(Panel(
+        "\n".join(f"  - {a}" for a in result.assumed_predictions) or "  (none)",
+        title="[bold red]PREDICTED FROM ASSUMED DEFAULTS[/]",
+        border_style="red",
+    ))
+
+    if result.experiment_protocol:
+        protocol_text = result.experiment_protocol
+        if result.experiment_protocol_caveat:
+            protocol_text += f"\n\nCAVEAT: {result.experiment_protocol_caveat}"
+        console.print(Panel(
+            protocol_text,
+            title="[bold blue]WET-LAB PROTOCOL (experiment_designer.py)[/]",
+            border_style="blue",
+        ))
+    else:
+        console.print(
+            f"\n[dim]No wet-lab protocol proposed: {result.experiment_protocol_caveat}[/]"
+        )
 
 
 def _display_grn_result(result) -> None:

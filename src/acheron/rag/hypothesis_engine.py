@@ -23,6 +23,9 @@ import logging
 import re
 from typing import Optional
 
+from pydantic import BaseModel, Field
+
+from acheron.extraction.parameter_extractor import ConfidenceTier
 from acheron.models import (
     ClaimStatus,
     EvidenceClaim,
@@ -33,6 +36,14 @@ from acheron.models import (
     QueryResult,
     RankedHypothesis,
 )
+from acheron.rag.experiment_designer import propose_experiment
+from acheron.simulation.betse_model import (
+    BETSEBackendUnavailable,
+    BioelectricSimulationResult,
+    ChannelClassUnsupported,
+    simulate_bioelectric,
+)
+from acheron.simulation.grn_model import GRNSimulationResult, simulate_grn
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +107,14 @@ _TUTOR_TRIGGERS = [
     "re-explain", "explain again", "walk me through",
 ]
 
+_PREDICTION_TRIGGERS = [
+    "predict the effect", "predicted outcome", "predicted effect",
+    "what happens if we knock", "what happens if you knock",
+    "knock down", "knockdown", "knock-down", "knockout", "knock-out",
+    "proposed intervention", "predict the outcome",
+    "combined prediction", "simulate the effect of",
+]
+
 
 def detect_mode(query: str, explicit_mode: Optional[str] = None) -> NexusMode:
     """Detect the operating mode from query text or explicit parameter.
@@ -104,13 +123,23 @@ def detect_mode(query: str, explicit_mode: Optional[str] = None) -> NexusMode:
     - Explicit mode always wins.
     - If query asks for a verdict/decision → MODE 4 (decision)
     - If query asks for explanation/learning → MODE 5 (tutor)
+    - If query asks to predict an intervention's effect → MODE 6 (prediction)
     - If query contains design/protocol language → MODE 3 (synthesis)
     - If query contains hypothesis/theory language → MODE 2 (hypothesis)
     - Otherwise → MODE 1 (evidence-grounded)
 
     Decision mode is checked first because decision-type queries
     ("should I use X?") may also contain hypothesis triggers ("what if").
-    Tutor mode is checked second to catch educational requests.
+    Tutor mode is checked second to catch educational requests. Prediction
+    mode is checked third since "predict"/"knockdown" language is otherwise
+    easily swallowed by the hypothesis triggers' "what if"/"what could".
+
+    Note: mode detection alone only labels a prediction-shaped query; it
+    does not itself run a prediction. `run_prediction_mode()` below needs
+    explicit organism/perturbation_gene arguments (structured, not parsed
+    from free text) exactly as `grn_model.simulate_grn()` does, for the
+    same reason: guessing a gene name or organism out of prose is exactly
+    the kind of unverified inference this project's rules forbid.
     """
     if explicit_mode:
         try:
@@ -125,6 +154,9 @@ def detect_mode(query: str, explicit_mode: Optional[str] = None) -> NexusMode:
     for trigger in _TUTOR_TRIGGERS:
         if trigger in lower:
             return NexusMode.TUTOR
+    for trigger in _PREDICTION_TRIGGERS:
+        if trigger in lower:
+            return NexusMode.PREDICTION
     # Auto-route casual/non-technical queries to tutor mode
     from acheron.reasoning.research_questions import is_casual_query
     if is_casual_query(query):
@@ -860,6 +892,54 @@ RULES FOR THIS MODE:
 - Analogies must be technically valid, not just "sounds similar."
 - Tag all claims: [EVIDENCE], [INFERENCE], [SPECULATION] as in other modes.
 - If the user's question contains misconceptions, correct them gently but clearly.
+"""
+
+
+PREDICTION_PROMPT = _BASE_IDENTITY + """
+MODE: COMBINED SIMULATION PREDICTION (MODE 6)
+A gene-regulatory-network simulation (grn_model.py) and, where a channel
+mapping exists, a real bioelectric simulation (BETSE, via betse_model.py)
+have ALREADY BEEN RUN for this query, using only cited Phase 3 parameters
+where available and clearly-flagged placeholder defaults everywhere else.
+Their combined, precomputed result is provided below as
+"PREDICTION CONTEXT" -- narrate and explain it, do NOT recompute, re-derive,
+or invent any of these numbers yourself. If a number is not present in the
+PREDICTION CONTEXT, it does not exist yet; say "UNKNOWN -- needs measurement",
+never estimate one.
+
+OUTPUT SECTIONS (use exact headings):
+
+1) Predicted Outcome
+One paragraph stating the combined predicted effect of the perturbation, in
+plain scientific language, citing the specific Vmem/gene-expression numbers
+from PREDICTION CONTEXT. State the overall confidence score exactly as given.
+
+2) Predicted From Cited Data
+Bullet list, one per entry in PREDICTION CONTEXT's CITED PREDICTIONS section.
+Do not add anything not already listed there.
+
+3) Predicted From Assumed Defaults
+Bullet list, one per entry in PREDICTION CONTEXT's ASSUMED PREDICTIONS
+section. Make clear these numbers are placeholders, not measurements.
+
+4) Confidence Rationale
+Explain, using only the cited-vs-total edge/parameter counts given, why the
+confidence score is what it is. Never restate it as higher or more certain
+than the counts justify.
+
+5) Wet-Lab Test
+Report the EXPERIMENT PROTOCOL from PREDICTION CONTEXT verbatim if one was
+generated, including its organism-mismatch caveat if present. If none was
+generated, say so and state why (per PREDICTION CONTEXT's own explanation).
+
+6) Next Steps to Raise Confidence
+Name the SPECIFIC uncited parameters (from PREDICTION CONTEXT) whose
+measurement would most raise the confidence score, ranked by how many
+downstream predictions each one gates.
+
+OVERALL_CONFIDENCE: [0-100]
+OVERALL_JUSTIFICATION: [state it is derived from the cited-vs-total ratio,
+not a separate judgment]
 """
 
 
@@ -1931,17 +2011,53 @@ def get_mode_prompt(mode: NexusMode, fast: bool = True) -> str:
         return SYNTHESIS_PROMPT
     elif mode == NexusMode.TUTOR:
         return TUTOR_PROMPT
+    elif mode == NexusMode.PREDICTION:
+        return PREDICTION_PROMPT
     return EVIDENCE_PROMPT
 
 
-def get_mode_query_template(mode: NexusMode, fast: bool = True, query: str = "") -> str:
+def get_mode_query_template(
+    mode: NexusMode, fast: bool = True, query: str = "", prediction_context: str = ""
+) -> str:
     """Return the query template for the given mode.
 
     Args:
         mode: The NexusMode to get template for
         fast: If True, use lean templates for faster responses (default True)
         query: The user's query (used for parameter fallback and computation detection)
+        prediction_context: PREDICTION mode only -- the text from
+            `format_prediction_context(run_prediction_mode(...))`, i.e. the
+            already-computed GRN+BETSE result this mode narrates rather than
+            recomputes. Caller (pipeline.py) runs `run_prediction_mode()`
+            itself and passes its formatted context in here; this function
+            never calls it, since that call needs explicit organism/
+            perturbation_gene arguments this function doesn't have.
     """
+    if mode == NexusMode.PREDICTION:
+        body = prediction_context or (
+            "No prediction was computed for this query -- call "
+            "run_prediction_mode(organism=..., perturbation_gene=...) first "
+            "and pass its formatted context in as prediction_context."
+        )
+        # This string is returned to pipeline.py, which calls
+        # .format(context=..., query=...) on it unconditionally regardless
+        # of mode -- so any literal "{"/"}" inside prediction_context (e.g.
+        # from a quoted evidence_text) must be escaped, or that later
+        # .format() call breaks.
+        body = body.replace("{", "{{").replace("}", "}}")
+        return f"""\
+PREDICTION CONTEXT (already computed, do not recompute):
+=== PREDICTION CONTEXT ===
+{body}
+===========================
+
+Prediction query: {{query}}
+
+Narrate this precomputed result using the exact section structure from your
+system prompt (Predicted Outcome -> Predicted From Cited Data -> Predicted
+From Assumed Defaults -> Confidence Rationale -> Wet-Lab Test -> Next Steps
+to Raise Confidence). Do not invent any number not already present above."""
+
     # Detect if this is a parameter query and generate fallback context
     fallback_context = ""
     if query:
@@ -2752,3 +2868,218 @@ def build_engine_result(
         live_sources_fetched=live_sources_fetched,
         raw_output=raw_output,  # Preserve the full LLM response
     )
+
+
+# ======================================================================
+# MODE 6 (prediction) — combines grn_model.py (gene-regulatory) and
+# betse_model.py (bioelectric) into one prediction with one derived
+# confidence score, then feeds it into experiment_designer.py. See
+# PREDICTION_PROMPT above and each simulation module's own docstring for
+# the full design/honesty discipline this builds on.
+# ======================================================================
+
+def _tier_for_fraction(fraction: float) -> ConfidenceTier:
+    """Same cut points as grn_model._tier_for_fraction / parameter_extractor
+    ._tier_from_score, applied to a third distinct quantity (GRN edges PLUS
+    the bioelectric channel-mapping parameter) -- kept local rather than
+    reused directly since what's being counted differs each time."""
+    if fraction >= 0.7:
+        return ConfidenceTier.HIGH
+    if fraction >= 0.4:
+        return ConfidenceTier.MEDIUM
+    return ConfidenceTier.LOW
+
+
+class PredictionModeResult(BaseModel):
+    """Output of MODE 6 -- kept local to this module, same convention
+    parameter_extractor.py/grn_model.py use for their own result shapes
+    (nothing added to models.py beyond the NexusMode.PREDICTION value)."""
+
+    organism: str
+    perturbation_gene: str
+    grn: GRNSimulationResult
+    bioelectric: Optional[BioelectricSimulationResult] = None
+    overall_confidence_score: float
+    overall_confidence_tier: ConfidenceTier
+    cited_predictions: list[str] = Field(default_factory=list)
+    assumed_predictions: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    experiment_protocol: Optional[str] = None
+    experiment_protocol_caveat: Optional[str] = None
+
+
+def _organism_matches(template_organism: str, actual_organism: str) -> bool:
+    """Loose substring match (e.g. 'Schmidtea mediterranea (asexual CIW4)' vs
+    'S. mediterranea') -- enough to flag an obvious cross-organism mismatch
+    between an experiment_designer.py template and the simulated organism,
+    without needing a full taxonomy table."""
+    t, a = template_organism.lower(), actual_organism.lower()
+    if "mediterranea" in t and "mediterranea" in a:
+        return True
+    if "subtilis" in t and "subtilis" in a:
+        return True
+    return t == a
+
+
+def run_prediction_mode(
+    organism: str,
+    perturbation_gene: str,
+    *,
+    channel_class: Optional[str] = None,
+    max_dm_fraction: float = 0.1,
+    knockdown_fraction: float = 0.1,
+    run_bioelectric: bool = True,
+    duration: float = 100.0,
+    n_points: int = 101,
+    max_hops: int = 2,
+    params_dir=None,
+) -> PredictionModeResult:
+    """Run grn_model.simulate_grn() and, unless disabled or unavailable,
+    betse_model.simulate_bioelectric() for the same perturbation, and
+    combine them into one prediction with one derived confidence score.
+
+    Confidence is NEVER a separate judgment call -- it is exactly
+    (# cited parameters) / (# total parameters) across both legs: each
+    GRN edge's rate constant, plus, only when the bioelectric leg actually
+    ran, one more parameter for whether its channel-class mapping was
+    cited (from evidence text) or assumed default. This is a direct
+    extension of grn_model.py's own confidence_score, not a second scoring
+    system with its own weights.
+
+    Raises ValueError (from simulate_grn) if the organism has no extracted
+    Phase 3 parameter records at all. Never raises for a missing/unusable
+    bioelectric leg -- that degrades to a warning and a GRN-only result,
+    since a partial, honestly-labeled prediction is more useful than none.
+    """
+    warnings: list[str] = []
+
+    grn_result = simulate_grn(
+        organism, perturbation_gene,
+        knockdown_fraction=knockdown_fraction, duration=duration,
+        n_points=n_points, max_hops=max_hops, params_dir=params_dir,
+    )
+
+    bioelectric_result: Optional[BioelectricSimulationResult] = None
+    if run_bioelectric:
+        evidence_texts = [e.evidence_text for e in grn_result.edges]
+        try:
+            bioelectric_result = simulate_bioelectric(
+                channel_class=channel_class, max_dm_fraction=max_dm_fraction,
+                evidence_texts=evidence_texts,
+            )
+            warnings.extend(bioelectric_result.warnings)
+        except (BETSEBackendUnavailable, ChannelClassUnsupported) as exc:
+            warnings.append(f"Bioelectric leg skipped: {exc}")
+
+    total_params = grn_result.n_total_edges + (1 if bioelectric_result else 0)
+    cited_params = grn_result.n_cited_edges + (
+        1 if bioelectric_result and bioelectric_result.channel_class_cited else 0
+    )
+    overall_confidence_score = (cited_params / total_params) if total_params else 0.0
+    overall_confidence_tier = _tier_for_fraction(overall_confidence_score)
+
+    cited_predictions = [
+        f"{e.source_gene} -[{e.relationship_type}]-> {e.target_gene}: "
+        f"rate_constant={e.rate_constant:g} (cited, record {e.record_id})"
+        for e in grn_result.edges if e.rate_cited
+    ]
+    assumed_predictions = list(grn_result.unknown_parameters)
+    if bioelectric_result:
+        if bioelectric_result.channel_class_cited:
+            cited_predictions.append(
+                f"Bioelectric channel class '{bioelectric_result.channel_class}' "
+                f"grounded in cited evidence text; real BETSE run predicts Vmem "
+                f"{bioelectric_result.baseline_vmem_mV:.3f} -> "
+                f"{bioelectric_result.perturbed_vmem_mV:.3f} mV "
+                f"(delta {bioelectric_result.delta_vmem_mV:+.3f} mV)."
+            )
+        else:
+            label = bioelectric_result.channel_class or "none provided/inferred"
+            assumed_predictions.append(
+                f"Bioelectric channel class ({label}) was not grounded in cited "
+                f"evidence text -- Vmem prediction "
+                f"({bioelectric_result.baseline_vmem_mV:.3f} -> "
+                f"{bioelectric_result.perturbed_vmem_mV:.3f} mV) rests on an "
+                f"assumed or absent channel mapping."
+            )
+
+    required_measurements = ["vmem"] if bioelectric_result else []
+    proposal = propose_experiment(required_measurements)
+    experiment_protocol: Optional[str] = None
+    experiment_protocol_caveat: Optional[str] = None
+    if proposal:
+        experiment_protocol = proposal.to_text()
+        if not _organism_matches(proposal.organism, grn_result.organism):
+            experiment_protocol_caveat = (
+                "experiment_designer.py's template catalog is planarian-specific; "
+                f"this protocol assumes {proposal.organism}, not {grn_result.organism}. "
+                f"Adapt organism-specific reagents/handling before use -- no "
+                f"matching template exists yet for {grn_result.organism}."
+            )
+    elif required_measurements:
+        experiment_protocol_caveat = (
+            "No matching experiment_designer.py template found for required "
+            f"measurement(s) {required_measurements}."
+        )
+    else:
+        experiment_protocol_caveat = (
+            "No wet-lab protocol proposed: the bioelectric leg did not run, "
+            "and experiment_designer.py has no gene-expression-only template yet."
+        )
+
+    return PredictionModeResult(
+        organism=grn_result.organism,
+        perturbation_gene=perturbation_gene,
+        grn=grn_result,
+        bioelectric=bioelectric_result,
+        overall_confidence_score=overall_confidence_score,
+        overall_confidence_tier=overall_confidence_tier,
+        cited_predictions=cited_predictions,
+        assumed_predictions=assumed_predictions,
+        warnings=warnings + grn_result.warnings,
+        experiment_protocol=experiment_protocol,
+        experiment_protocol_caveat=experiment_protocol_caveat,
+    )
+
+
+def format_prediction_context(result: PredictionModeResult) -> str:
+    """Render a PredictionModeResult as the PREDICTION CONTEXT text block
+    get_mode_query_template() injects for MODE 6 -- mirrors
+    generate_fallback_context()'s existing pattern of turning a structured
+    result into LLM-facing plain text the prompt narrates, never invents."""
+    lines = [
+        f"Organism: {result.organism}",
+        f"Perturbation: {result.perturbation_gene}",
+        f"Overall confidence: {result.overall_confidence_tier.value} "
+        f"(score={result.overall_confidence_score:.2f})",
+        "",
+        "CITED PREDICTIONS:",
+    ]
+    if result.cited_predictions:
+        lines.extend(f"  - {c}" for c in result.cited_predictions)
+    else:
+        lines.append("  (none -- no edge or channel mapping was cited)")
+
+    lines.append("")
+    lines.append("ASSUMED PREDICTIONS (placeholder defaults, not measurements):")
+    if result.assumed_predictions:
+        lines.extend(f"  - {a}" for a in result.assumed_predictions)
+    else:
+        lines.append("  (none)")
+
+    if result.warnings:
+        lines.append("")
+        lines.append("WARNINGS:")
+        lines.extend(f"  - {w}" for w in result.warnings)
+
+    lines.append("")
+    if result.experiment_protocol:
+        lines.append("EXPERIMENT PROTOCOL:")
+        lines.append(result.experiment_protocol)
+        if result.experiment_protocol_caveat:
+            lines.append("")
+            lines.append(f"CAVEAT: {result.experiment_protocol_caveat}")
+    else:
+        lines.append(f"EXPERIMENT PROTOCOL: none ({result.experiment_protocol_caveat})")
+
+    return "\n".join(lines)

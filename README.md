@@ -61,6 +61,7 @@ acheron serve
 | `acheron add paper.pdf` | Add a local PDF manually |
 | `acheron stats` | Show collection statistics |
 | `acheron simulate --model grn --organism <name> --perturbation <gene>` | Simulate a gene knockdown's downstream effect using cited parameters extracted from the Library (`pip install -e ".[simulation]"` first) |
+| `acheron simulate --model prediction --organism <name> --perturbation <gene>` | MODE 6: the same GRN simulation plus a real BETSE bioelectric run, combined into one confidence-scored prediction with a fed-through wet-lab protocol (`pip install -e ".[simulation]"` first; runs real BETSE, takes ~1-2 minutes) |
 | `acheron serve` | Start the web interface |
 
 The web interface (`acheron serve`) has four tabs: **Query** (ask + Discover/Analyze modes), **Library** (browse/search all indexed records with a per-source breakdown), **Ledger** (past discovery/analysis runs), and **Data Sources** (what each collector is and how to pull more of it in).
