@@ -1152,6 +1152,137 @@ def stats() -> None:
 
 
 # ======================================================================
+# SIMULATE — Phase 3 parameter-store-driven simulation backends
+# ======================================================================
+@main.command()
+@click.option(
+    "--model",
+    type=click.Choice(["grn"]),
+    default="grn",
+    help="Simulation backend (currently only 'grn': gene-regulatory-network)",
+)
+@click.option("--organism", required=True, help="Organism to simulate, e.g. 'B. subtilis', 'S. mediterranea'")
+@click.option("--perturbation", required=True, help="Gene to knock down")
+@click.option(
+    "--knockdown-fraction", default=0.1, type=float,
+    help="Fraction of baseline expression remaining after knockdown (0=full knockout, default 0.1)",
+)
+@click.option("--duration", default=100.0, type=float, help="Simulated time duration (dimensionless time units)")
+@click.option("--n-points", default=101, type=int, help="Number of timepoints to sample")
+@click.option("--max-hops", default=2, type=int, help="Max graph hops from the perturbed gene to include")
+@click.option("--output", "-o", type=click.Path(), default=None, help="Write full result JSON to this path")
+def simulate(
+    model: str,
+    organism: str,
+    perturbation: str,
+    knockdown_fraction: float,
+    duration: float,
+    n_points: int,
+    max_hops: int,
+    output: str | None,
+) -> None:
+    """Simulate a gene perturbation's downstream effect using Phase 3's cited parameter store.
+
+    Confidence scales with what fraction of the simulated network's edges carry
+    a cited rate constant (from extracted ParameterRecords) vs. an explicitly
+    flagged placeholder default -- never a silently invented number.
+
+    Example:
+        acheron simulate --model grn --organism "B. subtilis" --perturbation yugO
+    """
+    from acheron.simulation.grn_model import GRNBackendUnavailable, simulate_grn
+
+    try:
+        with console.status(f"[bold cyan]Simulating {model.upper()} perturbation of '{perturbation}'..."):
+            result = simulate_grn(
+                organism=organism,
+                perturbation_gene=perturbation,
+                knockdown_fraction=knockdown_fraction,
+                duration=duration,
+                n_points=n_points,
+                max_hops=max_hops,
+            )
+    except GRNBackendUnavailable as e:
+        console.print(f"[red]{e}[/]")
+        return
+    except ValueError as e:
+        console.print(f"[red]{e}[/]")
+        return
+
+    _display_grn_result(result)
+
+    if output:
+        Path(output).write_text(result.model_dump_json(indent=2), encoding="utf-8")
+        console.print(f"\n[dim]Full result (including trajectories) written to {output}[/]")
+
+
+def _display_grn_result(result) -> None:
+    """Display a GRNSimulationResult: network edges, confidence, trajectory summary."""
+    tier_color = {"high": "green", "medium": "yellow", "low": "red"}.get(result.confidence_tier.value, "dim")
+    console.print(Panel(
+        f"[bold]Organism:[/] {result.organism}\n"
+        f"[bold]Perturbation:[/] {result.perturbation_gene} "
+        f"(held at {result.knockdown_fraction:.0%} of baseline)\n"
+        f"[bold]Network:[/] {len(result.genes)} gene(s), {result.n_total_edges} edge(s)\n"
+        f"[bold]Confidence:[/] [{tier_color}]{result.confidence_tier.value}[/{tier_color}] "
+        f"({result.n_cited_edges}/{result.n_total_edges} edges cited, "
+        f"score={result.confidence_score:.2f})",
+        title="[bold cyan]GRN Simulation[/]",
+        border_style="cyan",
+    ))
+
+    if result.warnings:
+        console.print(Panel(
+            "\n".join(f"  - {w}" for w in result.warnings),
+            title="[bold yellow]WARNINGS[/]",
+            border_style="yellow",
+        ))
+
+    if result.edges:
+        table = Table(title="Network Edges", show_lines=True)
+        table.add_column("Source", style="cyan")
+        table.add_column("Relationship")
+        table.add_column("Target", style="cyan")
+        table.add_column("Sign")
+        table.add_column("Rate", justify="right")
+        table.add_column("Cited?")
+        for e in result.edges:
+            rate_style = "green" if e.rate_cited else "red"
+            table.add_row(
+                e.source_gene, e.relationship_type, e.target_gene,
+                e.sign, f"{e.rate_constant:g}",
+                f"[{rate_style}]{'yes' if e.rate_cited else 'NO (assumed)'}[/{rate_style}]",
+            )
+        console.print(table)
+
+    if result.trajectories:
+        traj_table = Table(title="Trajectory Summary (first -> last timepoint)")
+        traj_table.add_column("Gene", style="cyan")
+        traj_table.add_column("Start", justify="right")
+        traj_table.add_column("End", justify="right")
+        traj_table.add_column("Delta", justify="right")
+        for gene, values in sorted(result.trajectories.items()):
+            start, end = values[0], values[-1]
+            traj_table.add_row(gene, f"{start:.3f}", f"{end:.3f}", f"{end - start:+.3f}")
+        console.print(traj_table)
+        console.print(f"[dim]{len(result.timepoints)} timepoints simulated over duration; use --output for full time series.[/]")
+
+    if result.unknown_parameters:
+        console.print(Panel(
+            "\n".join(f"  - {u}" for u in result.unknown_parameters),
+            title="[bold red]UNKNOWN / ASSUMED PARAMETERS (not silently defaulted)[/]",
+            border_style="red",
+        ))
+
+    if result.notes:
+        console.print(Panel(
+            "\n".join(f"  - {n}" for n in result.notes),
+            title="[bold dim]MODELING NOTES[/]",
+            border_style="dim",
+        ))
+
+
+# ======================================================================
 # SERVE — web UI
 # ======================================================================
 @main.command()

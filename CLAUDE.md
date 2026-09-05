@@ -111,3 +111,21 @@ beyond that.
   organism is added. Run `python scripts/validate_parameters.py` after
   indexing to see what fraction of extracted records carry a cited
   rate/affinity value versus an explicit `UNKNOWN`, broken down per organism.
+- **GRN simulation (`simulation/grn_model.py`, `acheron simulate --model grn`)**
+  consumes `ParameterRecord`s (Phase 3's output) to simulate a gene
+  knockdown's downstream effect via Antimony/libRoadRunner (the ODE engine
+  Tellurium wraps — installed directly via the `simulation` extra,
+  `pip install -e ".[simulation]"`, to skip Tellurium's own plotting/Jupyter
+  dependencies). It reuses `parameter_extractor.py`'s `ParameterStore` and
+  `ConfidenceTier` rather than building a second storage layer or a second
+  confidence vocabulary, same reuse discipline as `parameter_extractor.py`
+  itself follows relative to `science_filter.py`. Every simulated edge's
+  rate constant and activation/repression sign is either read verbatim from
+  a cited source (a real `rate_or_affinity` value, or an explicit
+  positive/negative keyword in the record's own `evidence_text`) or an
+  engineering placeholder flagged in `unknown_parameters` — never silently
+  defaulted — and `confidence_score` is exactly the fraction of the
+  simulated network's edges carrying a cited rate constant. This module
+  only reads from the parameter store; it does not modify `extraction/`,
+  `rag/`, or the top-level `simulations/` directory (Acheron-side BETSE
+  scripts, unaffected by this Nexus-side addition).

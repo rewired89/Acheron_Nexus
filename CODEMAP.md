@@ -42,6 +42,12 @@ whether the source is keyless).
 | `pdf_parser.py` | PyMuPDF/pdfplumber-based PDF text + table extraction |
 | `parameter_extractor.py` | `extract_from_chunk(TextChunk) -> list[ParameterRecord]` / `extract_from_store(VectorStore) -> list[ParameterRecord]`: turns indexed chunks into structured `(subject) -[relationship_type]-> (object)` facts with a cited `rate_or_affinity` or explicit `UNKNOWN`. Confidence tier is a thin bucketing of `rag/science_filter.py`'s existing `score_evidence()` — no second scorer. `ParameterStore` persists records as flat JSON under `data_dir/parameters/` (mirrors `rag/ledger.py`'s pattern). Source-aware: SubtiWiki- and PlanMine-specific regex parsers target those two collectors' own known structured-text layout; every other source falls back to a heuristic literature parser (flagged `heuristic=True`). |
 
+## `simulation/` — consumes Phase 3's ParameterRecords to run perturbation simulations
+
+| File | Purpose |
+|---|---|
+| `grn_model.py` | `simulate_grn(organism, perturbation_gene, ...) -> GRNSimulationResult`: builds a small gene-regulatory network from `extraction/parameter_extractor.py`'s `ParameterRecord`s (SubtiWiki/PlanMine-eligible relationship types only — homology/domain/RNAi-expression annotations and SubtiWiki's non-specific regulon-summary records are excluded), converts it to SBML via Antimony, and integrates it with libRoadRunner (the same engine Tellurium wraps) to show how a gene knockdown propagates over time. Every edge's rate constant is either a literal cited number from `rate_or_affinity` or an explicitly-flagged placeholder — never a silent default — and `confidence_score` is exactly the fraction of simulated edges that carried a cited value. Optional dependency group: `pip install -e ".[simulation]"` (antimony + libroadrunner); raises `GRNBackendUnavailable` with that install line if missing, rather than failing on decoy `nan`s or invented numbers. Does not touch the top-level `simulations/` directory (Acheron-side BETSE scripts) or `rag/pipeline.py`. |
+
 ## `vectorstore/` — Layer 2 (Index): embedding storage and retrieval
 
 | File | Purpose |

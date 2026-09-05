@@ -64,6 +64,15 @@ dev = [
     "pytest-cov>=5.0.0",
     "ruff>=0.4.0",
 ]
+simulation = [
+    # GRN simulation backend (src/acheron/simulation/grn_model.py): SBML
+    # model construction (Antimony) + ODE integration (libRoadRunner), the
+    # same engine Tellurium wraps -- installed directly since the full
+    # tellurium package also pulls in plotting/Jupyter tooling this CLI-
+    # driven backend doesn't use.
+    "antimony>=3.0",
+    "libroadrunner>=2.1",
+]
 interface = [
     # Whisper STT (choose one)
     "faster-whisper>=1.0.0",

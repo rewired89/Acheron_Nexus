@@ -60,6 +60,7 @@ acheron serve
 | `acheron query -r "question"` | Retrieve passages without LLM generation |
 | `acheron add paper.pdf` | Add a local PDF manually |
 | `acheron stats` | Show collection statistics |
+| `acheron simulate --model grn --organism <name> --perturbation <gene>` | Simulate a gene knockdown's downstream effect using cited parameters extracted from the Library (`pip install -e ".[simulation]"` first) |
 | `acheron serve` | Start the web interface |
 
 The web interface (`acheron serve`) has four tabs: **Query** (ask + Discover/Analyze modes), **Library** (browse/search all indexed records with a per-source breakdown), **Ledger** (past discovery/analysis runs), and **Data Sources** (what each collector is and how to pull more of it in).
