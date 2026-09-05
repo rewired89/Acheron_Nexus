@@ -45,6 +45,10 @@ _ORGANISM_TIERS: dict[str, list[str]] = {
         "mouse", "rat", "zebrafish", "mammal", "human", "organoid",
         "cell line", "hek293", "ipsc",
     ],
+    "bacteria": [
+        "bacillus", "b. subtilis", "subtilis", "bacteri", "prokaryot",
+        "gram-positive", "gram-negative", "e. coli", "escherichia coli",
+    ],
 }
 
 

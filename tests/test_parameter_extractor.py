@@ -30,6 +30,7 @@ def _chunk_for(paper: Paper):
 def _subtiwiki_paper() -> Paper:
     abstract = "\n".join([
         "Gene: sigB",
+        "Organism: B. subtilis",
         "Locus tag: BSU_04730",
         "Function: general stress response sigma factor",
         "Protein-protein interactions:",
@@ -114,14 +115,14 @@ def test_extract_subtiwiki_interactions_and_regulation():
     assert "150 gene(s)" in regulon.object
 
 
-def test_subtiwiki_organism_match_scores_zero_known_limitation():
-    """Documents the discovered science_filter gap: B. subtilis text never
-    matches any _ORGANISM_TIERS keyword, so organism_match is always 0.0
-    for SubtiWiki-derived records. This is a known, reported limitation,
-    not a bug in this module — see the module docstring."""
+def test_subtiwiki_organism_match_scores_one_against_bacteria_tier():
+    """science_filter._ORGANISM_TIERS now has a "bacteria" tier, and
+    _target_organism_for() maps "B. subtilis" chunks to it, so SubtiWiki
+    records score organism_match=1.0 against their own organism instead of
+    being penalized for not matching a planarian-only scorer."""
     chunk = _chunk_for(_subtiwiki_paper())
     records = extract_from_chunk(chunk)
-    assert all(r.confidence_breakdown["organism_match"] == 0.0 for r in records)
+    assert all(r.confidence_breakdown["organism_match"] == 1.0 for r in records)
 
 
 # ======================================================================

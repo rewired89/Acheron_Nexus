@@ -10,19 +10,21 @@ Confidence tiers come from `rag/science_filter.py`'s existing evidence-scoring
 function (`score_evidence`) — this module does not implement a second scoring
 system. It just buckets that same 0-1 composite score into HIGH/MEDIUM/LOW.
 
-KNOWN LIMITATION (documented per MANIFEST.md's no-invention rule — this is
-being surfaced, not hidden): `science_filter._ORGANISM_TIERS` has no tier for
-bacteria. `score_organism_match()` only recognizes planarian/invertebrate/
-Xenopus/vertebrate keywords, so every SubtiWiki (B. subtilis) chunk scores
-organism_match=0.0 no matter what target_organism string is passed, while
-PlanMine (S. mediterranea) chunks correctly score 1.0 against the "planarian"
-tier. Since organism_match carries the heaviest weight (0.35) in the
-composite score, SubtiWiki-derived parameter records will systematically
-land in a lower confidence tier than their scientific merit alone would
-justify. This module does not patch `science_filter.py` to compensate
-(that would be building a second scoring system) — it reuses the scorer
-as-is and reports this asymmetry explicitly in `scripts/validate_parameters.py`
-so it is never silently hidden.
+`science_filter._ORGANISM_TIERS` originally had no tier for bacteria (it was
+built for planarian-vs-comparative-model scoring), which meant every
+SubtiWiki (B. subtilis) chunk scored organism_match=0.0 no matter what
+target_organism string was passed — Acheron Nexus has no use for a scorer
+that can't recognize the one organism a whole collector exists to describe.
+A "bacteria" tier was added to `_ORGANISM_TIERS` (keywords: bacillus,
+b. subtilis, subtilis, bacteri, prokaryot, gram-positive/negative,
+e. coli/escherichia coli) so B. subtilis text now scores organism_match=1.0
+when `score_evidence()` is called with `target_organism="bacteria"`, exactly
+the same way PlanMine (S. mediterranea) text scores 1.0 against the existing
+"planarian" tier. This module resolves the right target_organism per chunk
+via `_target_organism_for()` below. It is still a one-line addition to the
+existing scorer, not a second scoring system, and every other caller of
+`score_evidence()`/`score_organism_match()` is unaffected since its default
+`target_organism="planarian"` behavior is unchanged.
 
 Storage: parameter records are written as one JSON file per record under
 `data_dir / "parameters"`, mirroring `rag/ledger.py`'s existing
@@ -166,6 +168,21 @@ def _new_record_id() -> str:
 # ======================================================================
 # Confidence scoring for a chunk (reuses science_filter.score_evidence)
 # ======================================================================
+# Maps a Paper/TextChunk's own `organism` string to the _ORGANISM_TIERS key
+# that actually describes it, so score_evidence() gets asked about the
+# organism a chunk is really about instead of always defaulting to
+# "planarian". Extend this map, not science_filter's scorer, when a new
+# curated-database organism is added.
+_ORGANISM_TARGET_MAP = {
+    "b. subtilis": "bacteria",
+    "s. mediterranea": "planarian",
+}
+
+
+def _target_organism_for(organism: str) -> str:
+    return _ORGANISM_TARGET_MAP.get((organism or "").lower(), organism or "planarian")
+
+
 def _score_chunk(chunk: TextChunk) -> tuple[ConfidenceTier, float, dict]:
     meta = chunk.metadata or {}
     authors = meta.get("authors") or []
@@ -175,7 +192,7 @@ def _score_chunk(chunk: TextChunk) -> tuple[ConfidenceTier, float, dict]:
         except Exception:
             authors = []
 
-    target_organism = "planarian" if "mediterranea" in (chunk.organism or "").lower() else chunk.organism or "planarian"
+    target_organism = _target_organism_for(chunk.organism)
 
     result = QueryResult(
         text=chunk.text,

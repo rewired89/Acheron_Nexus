@@ -9,12 +9,12 @@ extracted (subject)-[relationship]->(object) records actually carry a cited
 numeric rate/affinity value versus how many are honestly UNKNOWN, so nobody
 has to guess how simulation-ready the current corpus is.
 
-Also reports the confidence-tier breakdown per organism, and explicitly
-flags the known science_filter organism-scoring asymmetry (SubtiWiki/
-B. subtilis chunks always score organism_match=0.0, since science_filter's
-_ORGANISM_TIERS has no bacterial tier -- see
-extraction/parameter_extractor.py's module docstring) so that asymmetry is
-never silently baked into a downstream decision.
+Also reports the confidence-tier breakdown per organism. science_filter's
+_ORGANISM_TIERS includes a "bacteria" tier (added alongside this script) so
+SubtiWiki/B. subtilis records are scored against their own organism instead
+of being silently penalized for not matching a planarian-only scorer -- see
+extraction/parameter_extractor.py's module docstring for how that mapping
+works.
 
 Usage:
     python scripts/validate_parameters.py
@@ -99,20 +99,16 @@ def main() -> None:
             "text) -- treat these as lower-confidence than the structured-source records."
         )
 
-    bacterial_records = [
+    unscored_bacterial = [
         r for r in records
         if r.source == "subtiwiki" and r.confidence_breakdown.get("organism_match") == 0.0
     ]
-    if bacterial_records:
+    if unscored_bacterial:
         print(
-            f"\nKNOWN LIMITATION: all {len(bacterial_records)} SubtiWiki-derived records "
-            "scored organism_match=0.0. science_filter.py's _ORGANISM_TIERS has no "
-            "bacterial tier (it was built for planarian-vs-comparative-model scoring), "
-            "so B. subtilis text can never match any tier keyword. This systematically "
-            "lowers SubtiWiki records' confidence_tier relative to their real scientific "
-            "merit. Not patched here -- patching science_filter.py would mean building a "
-            "second scoring system, which Phase 3 was explicitly told not to do. Flagging "
-            "it here so the number above is never read as apples-to-apples across organisms."
+            f"\nNOTE: {len(unscored_bacterial)} SubtiWiki-derived record(s) still scored "
+            "organism_match=0.0 despite the bacteria tier -- their chunk's organism field "
+            "did not read as 'B. subtilis' (check _ORGANISM_TARGET_MAP in "
+            "extraction/parameter_extractor.py if this looks wrong)."
         )
 
 

@@ -159,6 +159,7 @@ class SubtiWikiCollector(BaseCollector):
 
         summary_lines = [
             f"Gene: {name}",
+            f"Organism: {ORGANISM}",
             f"Locus tag: {locus_tag}" if locus_tag else "Locus tag: not recorded in SubtiWiki",
         ]
 
