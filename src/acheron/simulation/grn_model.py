@@ -58,6 +58,12 @@ result):
     ("regulates 5 gene(s) and 2 operon(s)"), not a specific target gene --
     those carry no usable object identity and are excluded from the
     network entirely, never guessed at.
+  - `DEFAULT_RATE_CONSTANT` (1.0) is 10x `DEFAULT_DECAY_RATE` (0.1) by
+    construction, which means a gene driven mostly by uncited (placeholder)
+    edges amplifies its driver's deviation by roughly that same 10x per
+    hop -- large trajectory swings in a low-confidence network reflect this
+    placeholder ratio, not a calibrated biological magnitude. Every result
+    with any uncited edge restates this in its own `notes`, not just here.
 """
 
 from __future__ import annotations
@@ -287,7 +293,10 @@ def _dedup_edges(edges: list[dict]) -> list[dict]:
             continue
         if edge["rate_cited"] and not current["rate_cited"]:
             best[key] = edge
-        elif edge["rate_cited"] == current["rate_cited"] and edge["confidence_score"] > current["confidence_score"]:
+        elif (
+            edge["rate_cited"] == current["rate_cited"]
+            and edge["confidence_score"] > current["confidence_score"]
+        ):
             best[key] = edge
     return list(best.values())
 
@@ -322,7 +331,8 @@ def _build_downstream_network(
 
     included = [
         edge for edge in edges
-        if _normalize_id(edge["source_gene"]) in visited and _normalize_id(edge["target_gene"]) in visited
+        if _normalize_id(edge["source_gene"]) in visited
+        and _normalize_id(edge["target_gene"]) in visited
     ]
     return visited, included
 
@@ -461,7 +471,9 @@ def simulate_grn(
         )
 
     visited, included_edges = _build_downstream_network(deduped_edges, perturbation_norm, max_hops)
-    display_by_norm = {norm: display for norm, display in display_by_norm.items() if norm in visited}
+    display_by_norm = {
+        norm: display for norm, display in display_by_norm.items() if norm in visited
+    }
 
     if not included_edges:
         warnings.append(
@@ -540,6 +552,18 @@ def simulate_grn(
         f"{knockdown_fraction:.0%} of baseline for the full simulated duration "
         f"(sustained knockdown/knockout line, not a transient perturbation).",
     ]
+    if n_total > n_cited:
+        notes.append(
+            f"This network includes at least one edge using the placeholder "
+            f"rate_constant={DEFAULT_RATE_CONSTANT} against decay_rate={decay_rate} "
+            f"-- since that placeholder isn't calibrated to any real timescale, a "
+            f"gene driven mostly by uncited edges can show a deviation amplified by "
+            f"roughly rate_constant/decay_rate (~{DEFAULT_RATE_CONSTANT / decay_rate:.0f}x) "
+            f"per hop, compounding across a multi-hop chain. A large trajectory swing "
+            f"in an uncited-heavy network reflects this placeholder ratio, not a "
+            f"calibrated biological magnitude -- confidence_score above already "
+            f"tells you how much of the network this applies to."
+        )
 
     return GRNSimulationResult(
         organism=resolved_organism,

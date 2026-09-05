@@ -180,33 +180,51 @@ def test_simulate_grn_end_to_end(tmp_path):
 
     store = ParameterStore(tmp_path)
     store.save_all([
+        # Upstream of yugO (SinR represses the mstX-yugO operon per Lundberg
+        # et al. 2013) -- must be EXCLUDED from a "downstream of yugO" network.
         _record("yugO", "regulated_by", "SinR", evidence_text="Regulated by SinR (negative)"),
+        # Downstream hop 1: yugO's K+ efflux activates KinC (real mechanism,
+        # Lundberg et al. 2013) -- rate never cited in this fixture.
         _record(
             "yugO", "activates", "kinC", rate_or_affinity="UNKNOWN",
             evidence_text="YugO K+ efflux activates KinC",
         ),
+        # Downstream hop 2: KinC phosphorylates/activates Spo0A (real
+        # mechanism, same paper).
+        _record(
+            "kinC", "activates", "spo0A", rate_or_affinity="UNKNOWN",
+            evidence_text="KinC activates Spo0A via phosphorylation",
+        ),
+        # Downstream hop 2, physical interaction with no stated sign --
+        # exercises the assumed-sign flagging path.
+        _record("kinC", "interacts_with", "degU", evidence_text="Interacts with DegU"),
     ])
 
     result = grn.simulate_grn(
         "bacteria", "yugO", knockdown_fraction=0.1, duration=50.0, n_points=6,
-        params_dir=tmp_path,
+        max_hops=2, params_dir=tmp_path,
     )
 
     assert result.organism == "B. subtilis"
-    assert "yugO" in result.genes
-    assert "kinC" in result.genes
-    assert result.n_total_edges == 2
-    # Neither edge in this fixture carries a cited rate constant.
+    assert set(result.genes) == {"yugO", "kinC", "spo0A", "degU"}
+    # SinR is upstream of yugO, not downstream -- correctly excluded, per
+    # this module's explicitly downstream-only BFS scoping.
+    assert "SinR" not in result.genes
+    assert result.n_total_edges == 3
+    # None of the three included edges carry a cited rate constant.
     assert result.n_cited_edges == 0
     assert result.confidence_score == 0.0
     assert result.confidence_tier == ConfidenceTier.LOW
-    assert len(result.unknown_parameters) >= 2  # both rates, at least one sign
+    # 3 uncited rates + 1 uncited sign (the interacts_with edge) = 4.
+    assert len(result.unknown_parameters) == 4
 
     # Perturbed gene held fixed at knockdown_fraction * baseline throughout.
     assert result.trajectories["yugO"] == pytest.approx([0.1] * len(result.timepoints))
-    # Downstream gene should move away from baseline (1.0) since it's driven
-    # by the perturbed gene's deviation from baseline.
+    # Downstream genes should move away from baseline (1.0), driven
+    # (directly or transitively) by the perturbed gene's deviation.
     assert result.trajectories["kinC"][-1] != pytest.approx(1.0)
+    assert result.trajectories["spo0A"][-1] != pytest.approx(1.0)
+    assert result.trajectories["degU"][-1] != pytest.approx(1.0)
 
 
 def test_simulate_grn_perturbation_gene_not_in_store_warns(tmp_path):

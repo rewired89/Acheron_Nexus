@@ -1161,16 +1161,28 @@ def stats() -> None:
     default="grn",
     help="Simulation backend (currently only 'grn': gene-regulatory-network)",
 )
-@click.option("--organism", required=True, help="Organism to simulate, e.g. 'B. subtilis', 'S. mediterranea'")
+@click.option(
+    "--organism", required=True,
+    help="Organism to simulate, e.g. 'B. subtilis', 'S. mediterranea'",
+)
 @click.option("--perturbation", required=True, help="Gene to knock down")
 @click.option(
     "--knockdown-fraction", default=0.1, type=float,
     help="Fraction of baseline expression remaining after knockdown (0=full knockout, default 0.1)",
 )
-@click.option("--duration", default=100.0, type=float, help="Simulated time duration (dimensionless time units)")
+@click.option(
+    "--duration", default=100.0, type=float,
+    help="Simulated time duration (dimensionless time units)",
+)
 @click.option("--n-points", default=101, type=int, help="Number of timepoints to sample")
-@click.option("--max-hops", default=2, type=int, help="Max graph hops from the perturbed gene to include")
-@click.option("--output", "-o", type=click.Path(), default=None, help="Write full result JSON to this path")
+@click.option(
+    "--max-hops", default=2, type=int,
+    help="Max graph hops from the perturbed gene to include",
+)
+@click.option(
+    "--output", "-o", type=click.Path(), default=None,
+    help="Write full result JSON to this path",
+)
 def simulate(
     model: str,
     organism: str,
@@ -1193,7 +1205,8 @@ def simulate(
     from acheron.simulation.grn_model import GRNBackendUnavailable, simulate_grn
 
     try:
-        with console.status(f"[bold cyan]Simulating {model.upper()} perturbation of '{perturbation}'..."):
+        status_msg = f"[bold cyan]Simulating {model.upper()} perturbation of '{perturbation}'..."
+        with console.status(status_msg):
             result = simulate_grn(
                 organism=organism,
                 perturbation_gene=perturbation,
@@ -1218,7 +1231,8 @@ def simulate(
 
 def _display_grn_result(result) -> None:
     """Display a GRNSimulationResult: network edges, confidence, trajectory summary."""
-    tier_color = {"high": "green", "medium": "yellow", "low": "red"}.get(result.confidence_tier.value, "dim")
+    tier_colors = {"high": "green", "medium": "yellow", "low": "red"}
+    tier_color = tier_colors.get(result.confidence_tier.value, "dim")
     console.print(Panel(
         f"[bold]Organism:[/] {result.organism}\n"
         f"[bold]Perturbation:[/] {result.perturbation_gene} "
@@ -1265,7 +1279,10 @@ def _display_grn_result(result) -> None:
             start, end = values[0], values[-1]
             traj_table.add_row(gene, f"{start:.3f}", f"{end:.3f}", f"{end - start:+.3f}")
         console.print(traj_table)
-        console.print(f"[dim]{len(result.timepoints)} timepoints simulated over duration; use --output for full time series.[/]")
+        console.print(
+            f"[dim]{len(result.timepoints)} timepoints simulated over duration; "
+            f"use --output for full time series.[/]"
+        )
 
     if result.unknown_parameters:
         console.print(Panel(
