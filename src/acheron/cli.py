@@ -72,7 +72,18 @@ BIO_DB_SOURCES = ("uniprot", "pdb", "alphafold", "ncbi_gene")
 # well-known, canonical B. subtilis regulatory genes, used only as search
 # terms — the collector never asserts anything about them beyond what
 # SubtiWiki's own API returns.
-SUBTIWIKI_DEFAULT_GENES = ("dnaA", "sigB", "comK", "spo0A", "sinR", "degU", "abrB", "codY")
+#
+# yugO, mstX, and kinC added because they are the named genes behind the
+# biofilm potassium-wave electrical signaling Acheron's own simulations
+# (gardner_toggle_circuit.py, native_oscillation_interference.py) already
+# cite by mechanism but, until Lundberg, Becker & Choe 2013 (PLoS ONE,
+# DOI 10.1371/journal.pone.0060993) was found via this collector, not by
+# gene name — see docs cross-reference in the Acheron repo's
+# SCIENTIFIC_AUDIT_2026.md, Part 14.
+SUBTIWIKI_DEFAULT_GENES = (
+    "dnaA", "sigB", "comK", "spo0A", "sinR", "degU", "abrB", "codY",
+    "yugO", "mstX", "kinC",
+)
 
 # Default search terms for --source planmine when no --topic is given.
 # PlanMine's search matches gene ID/symbol OR GO term name (see
