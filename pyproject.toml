@@ -31,7 +31,13 @@ dependencies = [
 
     # LLM integration
     "openai>=1.30.0",
-    "anthropic>=0.34.0",
+    # >=0.34.0 predates adaptive thinking / output_config effort / the
+    # ThinkingBlock content type this codebase relies on (see rag/pipeline.py's
+    # _generate_with_system). An old cached install below this floor will
+    # error or silently misbehave on those calls even though the code is
+    # correct -- if you hit API errors after pulling new code, `pip install
+    # --upgrade anthropic` (or recreate your venv) before debugging further.
+    "anthropic>=0.122.0",
 
     # Web interface
     "fastapi>=0.111.0",
