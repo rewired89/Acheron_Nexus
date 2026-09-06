@@ -61,9 +61,33 @@ GENE_PROTEIN_TOPICS = {
 # AlphaFold DB is looked up by UniProt accession, not free text — there
 # is no sensible default query. Run `acheron collect --source uniprot`
 # first to discover accessions for your gene family of interest, then
-# pass them with --topic "P17302,Q9Y6N1,..." for --source alphafold.
+# pass them with --topic "P17302,Q9Y6N1,..." for --source alphafold, or
+# pass --from-uniprot to pull accessions already sitting in the Library
+# instead of typing them by hand (see _uniprot_accessions_from_library).
 
 BIO_DB_SOURCES = ("uniprot", "pdb", "alphafold", "ncbi_gene")
+
+
+def _uniprot_accessions_from_library() -> list[str]:
+    """Read every already-collected UniProt record's accession from the Library.
+
+    UniProtCollector saves each record with `paper_id=f"uniprot:{accession}"`
+    (see collectors/uniprot.py), so the accession is recovered straight from
+    that field rather than re-deriving it from the metadata filename.
+    """
+    metadata_dir = get_settings().metadata_dir
+    if not metadata_dir.exists():
+        return []
+
+    accessions: list[str] = []
+    for meta_file in metadata_dir.glob("uniprot_*.json"):
+        try:
+            paper_id = json.loads(meta_file.read_text(encoding="utf-8")).get("paper_id", "")
+        except (json.JSONDecodeError, OSError):
+            continue
+        if paper_id.startswith("uniprot:"):
+            accessions.append(paper_id.split(":", 1)[1])
+    return sorted(set(accessions))
 
 # Default gene names for --source subtiwiki when no --topic is given.
 # SubtiWiki (B. subtilis) has its own gene-name space — the GENE_PROTEIN_TOPICS
@@ -124,6 +148,11 @@ def main(verbose: bool) -> None:
 @click.option("--mindate", default=None, help="Minimum date filter (YYYY or YYYY/MM)")
 @click.option("--maxdate", default=None, help="Maximum date filter (YYYY or YYYY/MM)")
 @click.option("--download-pdfs", is_flag=True, help="Also download PDFs")
+@click.option(
+    "--from-uniprot", is_flag=True,
+    help="For --source alphafold: use accessions already collected via "
+    "--source uniprot instead of requiring -t",
+)
 def collect(
     source: str,
     topic: tuple,
@@ -131,6 +160,7 @@ def collect(
     mindate: str | None,
     maxdate: str | None,
     download_pdfs: bool,
+    from_uniprot: bool,
 ) -> None:
     """Collect papers into the Library from academic sources and free bio-databases.
 
@@ -141,6 +171,7 @@ def collect(
         acheron collect --source pdb -t "connexin gap junction channel"
         acheron collect --source ncbi_gene -t "KCNQ1" -t "GJA1"
         acheron collect --source alphafold -t "P17302,Q9Y6N1"   # UniProt accessions
+        acheron collect --source alphafold --from-uniprot       # use Library's own accessions
         acheron collect --source subtiwiki -t "sigB" -t "comK"
         acheron collect --source planmine -t "innexin" -t "smedwi-1"
     """
@@ -156,6 +187,17 @@ def collect(
 
     if topic:
         topics = list(topic)
+    elif source == "alphafold" and from_uniprot:
+        accessions = _uniprot_accessions_from_library()
+        if not accessions:
+            console.print(
+                "[yellow]No UniProt records found in the Library. Run "
+                "'acheron collect --source uniprot' first, then retry "
+                "--from-uniprot.[/]"
+            )
+            return
+        console.print(f"Using {len(accessions)} accession(s) from the Library's UniProt records.")
+        topics = [",".join(accessions)]
     elif source == "subtiwiki":
         topics = list(SUBTIWIKI_DEFAULT_GENES)
     elif source == "planmine":
@@ -164,7 +206,8 @@ def collect(
         if source == "alphafold":
             console.print(
                 "[yellow]--source alphafold has no default query — pass UniProt "
-                "accessions with -t, e.g. -t \"P17302,Q9Y6N1\". "
+                "accessions with -t, e.g. -t \"P17302,Q9Y6N1\", or pass "
+                "--from-uniprot to use accessions already in the Library. "
                 "Run --source uniprot first to discover accessions.[/]"
             )
             return
