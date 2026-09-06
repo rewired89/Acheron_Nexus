@@ -68,25 +68,39 @@ GENE_PROTEIN_TOPICS = {
 BIO_DB_SOURCES = ("uniprot", "pdb", "alphafold", "ncbi_gene")
 
 
-def _uniprot_accessions_from_library() -> list[str]:
-    """Read every already-collected UniProt record's accession from the Library.
+def _uniprot_accessions_from_library(organism: str | None = None) -> list[str]:
+    """Read already-collected UniProt records' accessions from the Library.
 
     UniProtCollector saves each record with `paper_id=f"uniprot:{accession}"`
     (see collectors/uniprot.py), so the accession is recovered straight from
     that field rather than re-deriving it from the metadata filename.
+
+    `organism`, when given, is matched case-insensitively as a substring
+    against the record's own `organism` field (e.g. "planarian" or
+    "subtilis") — not guessed or pattern-matched from the gene name, since
+    a UniProt keyword search like "innexin" or "KCNQ" returns hits across
+    many species and only the record's own organism field says which is
+    which. Records collected before UniProtCollector started setting that
+    field will have it blank and won't match any organism filter — re-run
+    `acheron collect --source uniprot` for those genes to backfill it.
     """
     metadata_dir = get_settings().metadata_dir
     if not metadata_dir.exists():
         return []
 
     accessions: list[str] = []
+    organism_lower = organism.lower() if organism else None
     for meta_file in metadata_dir.glob("uniprot_*.json"):
         try:
-            paper_id = json.loads(meta_file.read_text(encoding="utf-8")).get("paper_id", "")
+            data = json.loads(meta_file.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             continue
-        if paper_id.startswith("uniprot:"):
-            accessions.append(paper_id.split(":", 1)[1])
+        paper_id = data.get("paper_id", "")
+        if not paper_id.startswith("uniprot:"):
+            continue
+        if organism_lower and organism_lower not in (data.get("organism") or "").lower():
+            continue
+        accessions.append(paper_id.split(":", 1)[1])
     return sorted(set(accessions))
 
 # Default gene names for --source subtiwiki when no --topic is given.
@@ -153,6 +167,13 @@ def main(verbose: bool) -> None:
     help="For --source alphafold: use accessions already collected via "
     "--source uniprot instead of requiring -t",
 )
+@click.option(
+    "--organism", default=None,
+    help="With --from-uniprot: only use accessions whose UniProt record's "
+    "organism field contains this substring (e.g. \"planarian\", "
+    "\"subtilis\") — a keyword search like -t innexin matches every "
+    "species, this narrows it to the one you actually want structures for",
+)
 def collect(
     source: str,
     topic: tuple,
@@ -161,6 +182,7 @@ def collect(
     maxdate: str | None,
     download_pdfs: bool,
     from_uniprot: bool,
+    organism: str | None,
 ) -> None:
     """Collect papers into the Library from academic sources and free bio-databases.
 
@@ -172,6 +194,7 @@ def collect(
         acheron collect --source ncbi_gene -t "KCNQ1" -t "GJA1"
         acheron collect --source alphafold -t "P17302,Q9Y6N1"   # UniProt accessions
         acheron collect --source alphafold --from-uniprot       # use Library's own accessions
+        acheron collect --source alphafold --from-uniprot --organism "subtilis"  # only that species
         acheron collect --source subtiwiki -t "sigB" -t "comK"
         acheron collect --source planmine -t "innexin" -t "smedwi-1"
     """
@@ -188,15 +211,25 @@ def collect(
     if topic:
         topics = list(topic)
     elif source == "alphafold" and from_uniprot:
-        accessions = _uniprot_accessions_from_library()
+        accessions = _uniprot_accessions_from_library(organism=organism)
         if not accessions:
-            console.print(
-                "[yellow]No UniProt records found in the Library. Run "
-                "'acheron collect --source uniprot' first, then retry "
-                "--from-uniprot.[/]"
-            )
+            if organism:
+                console.print(
+                    f"[yellow]No UniProt records in the Library have an organism "
+                    f"field matching '{organism}'. Records collected before this "
+                    "field was tracked will have it blank — re-run "
+                    "'acheron collect --source uniprot' for the relevant genes, "
+                    "or drop --organism to see all accessions.[/]"
+                )
+            else:
+                console.print(
+                    "[yellow]No UniProt records found in the Library. Run "
+                    "'acheron collect --source uniprot' first, then retry "
+                    "--from-uniprot.[/]"
+                )
             return
-        console.print(f"Using {len(accessions)} accession(s) from the Library's UniProt records.")
+        scope = f" (organism matches '{organism}')" if organism else ""
+        console.print(f"Using {len(accessions)} accession(s) from the Library's UniProt records{scope}.")
         topics = [",".join(accessions)]
     elif source == "subtiwiki":
         topics = list(SUBTIWIKI_DEFAULT_GENES)

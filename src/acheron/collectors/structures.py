@@ -18,7 +18,7 @@ import logging
 from typing import Optional
 
 from acheron.collectors.base import BaseCollector
-from acheron.models import Paper, PaperSource
+from acheron.models import Paper, PaperSource, SourceType
 
 logger = logging.getLogger(__name__)
 
@@ -189,6 +189,8 @@ class AlphaFoldCollector(BaseCollector):
             abstract="\n".join(line for line in summary_lines if line),
             publication_date=pub_date,
             source=PaperSource.ALPHAFOLD,
+            source_type=SourceType.CURATED_DB,
+            organism=organism,
             journal="AlphaFold Protein Structure Database",
             keywords=[gene] if gene else [],
             url=f"https://alphafold.ebi.ac.uk/entry/{accession}",

@@ -20,7 +20,7 @@ from datetime import date
 from typing import Optional
 
 from acheron.collectors.base import BaseCollector
-from acheron.models import Paper, PaperSource
+from acheron.models import Paper, PaperSource, SourceType
 
 logger = logging.getLogger(__name__)
 
@@ -166,6 +166,8 @@ class UniProtCollector(BaseCollector):
             abstract=abstract,
             publication_date=pub_date,
             source=PaperSource.UNIPROT,
+            source_type=SourceType.CURATED_DB,
+            organism=organism,
             journal="UniProtKB/Swiss-Prot",
             keywords=keywords + gene_names,
             url=f"https://www.uniprot.org/uniprotkb/{accession}/entry",
