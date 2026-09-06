@@ -872,7 +872,7 @@ def _display_analysis_result(result):
     mode_colors = {"evidence": "green", "hypothesis": "purple", "synthesis": "cyan"}
     mode_color = mode_colors.get(result.mode.value, "white")
     console.print(
-        f"[bold {mode_color}]MODE: {result.mode.value.upper()}[/{mode_color}]"
+        f"[bold {mode_color}]MODE: {result.mode.value.upper()}[/]"
         + (f" | Live sources: {result.live_sources_fetched}" if result.live_sources_fetched else "")
     )
 
