@@ -101,6 +101,7 @@ RAG pipeline directly. See each file's docstring for its specific model.
 | `simulations/` | Standalone bioelectric/circuit simulation scripts (Acheron-side, not Nexus's RAG) |
 | `scripts/` | One-off utility scripts, including `validate_parameters.py` (per-organism cited-vs-UNKNOWN report for the extracted parameter corpus) |
 | `tests/` | Pytest suite — one file per module/feature, offline fixture-based (no live network calls) |
+| `TROUBLESHOOTING.md` | Known Compute-layer / local-environment failure modes (connection errors, key issues, dependency version mismatches) and how to tell them apart |
 
 ## Adding a new collector (checklist)
 

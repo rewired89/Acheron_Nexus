@@ -13,8 +13,11 @@ ChromaDB vector store, and answers questions with grounded, cited
 responses through a FastAPI web UI.
 
 See `CODEMAP.md` for the module-by-module file map, `README.md` for the
-full CLI reference, and `MANIFEST.md` / `LOGIC_HASH.md` for the project's
-non-negotiable rules (read these before touching `rag/` or any collector).
+full CLI reference, `MANIFEST.md` / `LOGIC_HASH.md` for the project's
+non-negotiable rules (read these before touching `rag/` or any collector),
+and `TROUBLESHOOTING.md` for known Compute-layer / local-environment
+failure modes (recurring "Compute layer unavailable" errors are almost
+never the same root cause twice).
 
 ## The one rule that overrides everything else
 
