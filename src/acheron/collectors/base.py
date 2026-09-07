@@ -8,10 +8,26 @@ from pathlib import Path
 from typing import Optional
 
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from acheron.config import get_settings
 from acheron.models import Paper
+
+
+def _is_retryable(exc: BaseException) -> bool:
+    """True for transient failures worth retrying, false for 4xx client errors.
+
+    A 404/403/etc. means the URL is wrong or the content isn't there --
+    retrying it 3 times with exponential backoff just wastes minutes on a
+    request guaranteed to fail identically every time (this is exactly what
+    made `--download-pdfs` runs appear to hang: bioRxiv's guessed PDF URL
+    pattern 404s for any preprint past v1, and each one burned ~3 minutes
+    of pointless retries).
+    """
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code >= 500
+    return isinstance(exc, (httpx.TransportError, httpx.TimeoutException))
+
 
 logger = logging.getLogger(__name__)
 
@@ -67,13 +83,21 @@ class BaseCollector(abc.ABC):
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, max=30))
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=2, max=30),
+        retry=retry_if_exception(_is_retryable),
+    )
     def _get(self, url: str, **kwargs) -> httpx.Response:
         resp = self.client.get(url, **kwargs)
         resp.raise_for_status()
         return resp
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, max=30))
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=2, max=30),
+        retry=retry_if_exception(_is_retryable),
+    )
     def _download(self, url: str, dest: Path, paper: Paper) -> Path:
         with self.client.stream("GET", url) as resp:
             resp.raise_for_status()
