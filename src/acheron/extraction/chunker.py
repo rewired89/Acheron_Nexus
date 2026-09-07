@@ -246,6 +246,7 @@ class TextChunker:
                 "source": paper.source,
                 "date": str(paper.publication_date) if paper.publication_date else "",
                 "url": paper.url or "",
+                "content_type": "abstract" if section == "Abstract" else "full_text",
             },
             # Evidence span fields
             source_file=source_file,

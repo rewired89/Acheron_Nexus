@@ -296,9 +296,9 @@ def collect(
                         papers = collector.search(query, max_results=max_results)
 
                     for paper in papers:
-                        collector.save_metadata(paper)
                         if download_pdfs and paper.url:
                             collector.download_pdf(paper)
+                        collector.save_metadata(paper)
                         if paper.full_text:
                             total_fulltext += 1
 
