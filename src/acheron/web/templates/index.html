@@ -235,6 +235,32 @@
 
         ::-webkit-scrollbar { height: 8px; width: 8px; }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        /* ================= API key gate ================= */
+        .key-btn {
+            background: var(--surface); border: 1px solid var(--border); color: var(--text-dim);
+            padding: 0.4rem 0.7rem; border-radius: 20px; font-size: 0.72rem; font-family: var(--mono);
+            cursor: pointer; white-space: nowrap;
+        }
+        .key-btn:hover { color: var(--text); border-color: var(--accent); }
+        .key-btn.set { color: var(--green); border-color: var(--green); }
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(5,8,12,0.72); backdrop-filter: blur(2px);
+            display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1.25rem;
+        }
+        .modal-overlay[hidden] { display: none; }
+        .modal-box {
+            background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 1.5rem; max-width: 440px; width: 100%;
+        }
+        .modal-box h3 { font-size: 1rem; margin-bottom: 0.5rem; color: var(--text); }
+        .modal-box p { color: var(--text-dim); font-size: 0.82rem; margin-bottom: 0.9rem; line-height: 1.55; }
+        .modal-box input[type="password"], .modal-box input[type="text"] {
+            width: 100%; padding: 0.55rem 0.7rem; margin-bottom: 0.7rem;
+        }
+        .modal-actions { display: flex; gap: 0.6rem; justify-content: flex-end; }
+        .modal-note { color: var(--text-faint); font-size: 0.72rem; margin-top: 0.6rem; }
+        .modal-error { color: var(--red); font-size: 0.78rem; margin-bottom: 0.6rem; min-height: 1em; }
     </style>
 </head>
 <body>
@@ -251,8 +277,30 @@
                 <input type="text" id="nav-search" placeholder="Ask Nexus a question&hellip;">
                 <button class="btn-cta" onclick="navAsk()">Ask</button>
             </div>
+            <button class="key-btn" id="key-status-btn" onclick="openKeyModal()">API key</button>
         </div>
     </nav>
+
+    <!-- ============ API KEY GATE ============ -->
+    <div class="modal-overlay" id="key-modal" hidden>
+        <div class="modal-box">
+            <h3>Your Anthropic API key</h3>
+            <p>
+                Nexus needs a Claude API key to answer questions (retrieving sources is free,
+                asking Nexus to read and reason over them is not). Use your own key so you're
+                spending your own quota, not the operator's. It's stored only in this browser
+                (localStorage) and sent directly to this server per request, never anywhere else.
+            </p>
+            <div class="modal-error" id="key-modal-error"></div>
+            <input type="password" id="key-modal-input" placeholder="sk-ant-...">
+            <div class="modal-actions">
+                <button class="secondary" type="button" onclick="closeKeyModal()">Cancel</button>
+                <button class="secondary" type="button" id="key-modal-clear" onclick="clearApiKey()">Clear saved key</button>
+                <button class="primary" type="button" onclick="saveApiKey()">Save</button>
+            </div>
+            <div class="modal-note">Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</div>
+        </div>
+    </div>
 
     <div class="wrap">
         <section class="hero">
@@ -470,6 +518,49 @@
         const navSearch = document.getElementById('nav-search');
         let allPapers = [];
 
+        // ---------------- API key gate ----------------
+        // Each visitor's own Anthropic key, kept only in their browser and sent
+        // per-request so the operator's own key is never spent by other people
+        // using this page.
+        const API_KEY_STORAGE = 'nexus_anthropic_api_key';
+        function getApiKey() { try { return localStorage.getItem(API_KEY_STORAGE) || ''; } catch (e) { return ''; } }
+        function setApiKey(key) { try { localStorage.setItem(API_KEY_STORAGE, key); } catch (e) {} }
+        function removeApiKey() { try { localStorage.removeItem(API_KEY_STORAGE); } catch (e) {} }
+
+        function refreshKeyButton() {
+            const btn = document.getElementById('key-status-btn');
+            const has = !!getApiKey();
+            btn.textContent = has ? 'API key set' : 'Set API key';
+            btn.classList.toggle('set', has);
+        }
+        function openKeyModal(errorMsg) {
+            document.getElementById('key-modal-error').textContent = errorMsg || '';
+            document.getElementById('key-modal-input').value = getApiKey();
+            document.getElementById('key-modal').hidden = false;
+        }
+        function closeKeyModal() { document.getElementById('key-modal').hidden = true; }
+        function saveApiKey() {
+            const val = document.getElementById('key-modal-input').value.trim();
+            if (!val) { document.getElementById('key-modal-error').textContent = 'Enter a key, or use Clear saved key.'; return; }
+            setApiKey(val);
+            refreshKeyButton();
+            closeKeyModal();
+        }
+        function clearApiKey() {
+            removeApiKey();
+            document.getElementById('key-modal-input').value = '';
+            refreshKeyButton();
+        }
+        // Headers for any request that calls the LLM (Compute layer). Retrieval
+        // (search, stats, library, ledger, upload) needs none of this.
+        function computeHeaders() {
+            const h = { 'Content-Type': 'application/json' };
+            const key = getApiKey();
+            if (key) h['X-Anthropic-Api-Key'] = key;
+            return h;
+        }
+        refreshKeyButton();
+
         queryInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitQuery(); }
         });
@@ -562,11 +653,12 @@
             const p = getParams();
             if (!p.question) return;
             p.retrieve_only = retrieveOnly;
+            if (!retrieveOnly && !getApiKey()) { openKeyModal('Enter your Anthropic API key to ask Nexus, or use Retrieve Only.'); return; }
             resultsDiv.innerHTML = '<div class="loading">Retrieving from Index&hellip;</div>';
             try {
-                const resp = await fetch('/api/query', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(p) });
+                const resp = await fetch('/api/query', { method: 'POST', headers: computeHeaders(), body: JSON.stringify(p) });
                 const data = await resp.json();
-                if (!resp.ok) { renderError(data); return; }
+                if (!resp.ok) { renderError(data, resp.status); return; }
                 renderQueryResults(data, retrieveOnly);
             } catch (err) {
                 resultsDiv.innerHTML = '<div class="answer-raw" style="color:var(--red)">Error: ' + esc(err.message) + '</div>';
@@ -576,11 +668,12 @@
         async function submitDiscover() {
             const p = getParams();
             if (!p.question) return;
+            if (!getApiKey()) { openKeyModal('Enter your Anthropic API key to run Discover.'); return; }
             resultsDiv.innerHTML = '<div class="loading">Executing discovery loop (Discovery layer)&hellip;</div>';
             try {
-                const resp = await fetch('/api/discover', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(p) });
+                const resp = await fetch('/api/discover', { method: 'POST', headers: computeHeaders(), body: JSON.stringify(p) });
                 const data = await resp.json();
-                if (!resp.ok) { renderError(data); return; }
+                if (!resp.ok) { renderError(data, resp.status); return; }
                 renderDiscoverResults(data);
                 loadStats();
             } catch (err) {
@@ -591,11 +684,12 @@
         async function submitAnalyze() {
             const p = getParams();
             if (!p.question) return;
+            if (!getApiKey()) { openKeyModal('Enter your Anthropic API key to run Analyze.'); return; }
             resultsDiv.innerHTML = '<div class="loading">Running Evidence-Bound Hypothesis Engine&hellip;</div>';
             try {
-                const resp = await fetch('/api/analyze', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(p) });
+                const resp = await fetch('/api/analyze', { method: 'POST', headers: computeHeaders(), body: JSON.stringify(p) });
                 const data = await resp.json();
-                if (!resp.ok) { renderError(data); return; }
+                if (!resp.ok) { renderError(data, resp.status); return; }
                 renderAnalyzeResults(data);
                 loadStats();
             } catch (err) {
@@ -603,7 +697,8 @@
             }
         }
 
-        function renderError(data) {
+        function renderError(data, status) {
+            if (status === 401) { openKeyModal(data.detail || 'Enter your Anthropic API key.'); }
             resultsDiv.innerHTML = '<div class="answer-raw" style="color:var(--red)">' +
                 esc(data.detail || data.error || 'Request failed') +
                 (data.hint ? '<div class="meta-line">' + esc(data.hint) + '</div>' : '') + '</div>';
