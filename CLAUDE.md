@@ -19,6 +19,12 @@ and `TROUBLESHOOTING.md` for known Compute-layer / local-environment
 failure modes (recurring "Compute layer unavailable" errors are almost
 never the same root cause twice).
 
+## Git workflow
+
+Always commit and push directly to `main`. Do not create side branches, and
+do not open pull requests, unless explicitly told otherwise for that
+session. Merge any existing feature branch into `main` and push there.
+
 ## The one rule that overrides everything else
 
 **No invented facts, numbers, or citations, ever.** Every number, claim, or
