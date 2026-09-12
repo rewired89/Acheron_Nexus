@@ -622,6 +622,7 @@ class RAGPipeline:
         store: Optional[VectorStore] = None,
         n_retrieve: int = 12,
         n_context: int = 8,
+        api_key: Optional[str] = None,
     ) -> None:
         self.settings = get_settings()
         self.store = store or VectorStore()
@@ -629,13 +630,16 @@ class RAGPipeline:
         self.n_context = n_context
         self._llm_client = None
         self._provider: str = self.settings.llm_provider.lower()
+        # Per-request key override (bring-your-own-key from the web UI) takes
+        # priority over the server's own configured key.
+        self._api_key_override = api_key
 
     def _get_client(self):
         """Lazy-init the LLM client based on the configured provider."""
         if self._llm_client is not None:
             return self._llm_client
 
-        api_key = self.settings.resolved_llm_api_key
+        api_key = self._api_key_override or self.settings.resolved_llm_api_key
         if not api_key:
             if self._provider == "anthropic":
                 hint = "Set ANTHROPIC_API_KEY in your environment or .env file."

@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi import FastAPI, File, Form, Header, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -125,32 +125,31 @@ async def home(request: Request):
 # ======================================================================
 # API endpoints
 # ======================================================================
-def _compute_error_json() -> JSONResponse:
-    """Return a 503 JSON error when Compute layer is unavailable."""
-    settings = get_settings()
-    provider = settings.llm_provider
-    if provider == "anthropic":
-        key_hint = "Set ANTHROPIC_API_KEY in your .env file."
-    else:
-        key_hint = "Set ACHERON_LLM_API_KEY or OPENAI_API_KEY in your .env file."
+def _require_api_key(api_key: Optional[str]) -> Optional[JSONResponse]:
+    """Every browser hitting the web UI's Compute endpoints supplies its own
+    Anthropic API key (never the operator's server-side key) so that visitors
+    spend their own quota, not the operator's. Returns a 401 JSON error if
+    no key was supplied, else None."""
+    if api_key and api_key.strip():
+        return None
     return JSONResponse(
-        status_code=503,
+        status_code=401,
         content={
-            "error": "Compute layer unavailable",
-            "provider": provider,
-            "detail": f"Provider '{provider}' is not configured. {key_hint}",
+            "error": "API key required",
+            "detail": "Enter your own Anthropic API key to ask questions. "
+            "This keeps the operator's key from being spent by other visitors.",
             "retrieval_available": True,
-            "hint": "Use retrieve_only=true or 'acheron query -r' for retrieval-only mode.",
+            "hint": "Use retrieve_only=true for retrieval-only mode without a key.",
         },
     )
 
 
 @app.post("/api/query", response_model=QueryResponse)
-async def api_query(req: QueryRequest):
-    pipeline = get_pipeline()
-
+async def api_query(
+    req: QueryRequest, x_anthropic_api_key: Optional[str] = Header(default=None)
+):
     if req.retrieve_only:
-        results = pipeline.retrieve_only(
+        results = get_pipeline().retrieve_only(
             req.question, n_results=req.n_results, filter_source=req.source_filter
         )
         return QueryResponse(
@@ -160,10 +159,11 @@ async def api_query(req: QueryRequest):
             total_chunks_searched=len(results),
         )
 
-    settings = get_settings()
-    if not settings.compute_available:
-        return _compute_error_json()
+    err = _require_api_key(x_anthropic_api_key)
+    if err:
+        return err
 
+    pipeline = RAGPipeline(store=get_store(), api_key=x_anthropic_api_key)
     response = pipeline.query(
         req.question, filter_source=req.source_filter, n_results=req.n_results
     )
@@ -181,15 +181,17 @@ async def api_query(req: QueryRequest):
 
 
 @app.post("/api/discover", response_model=DiscoverResponse)
-async def api_discover(req: QueryRequest):
+async def api_discover(
+    req: QueryRequest, x_anthropic_api_key: Optional[str] = Header(default=None)
+):
     """Execute the discovery loop and return structured results."""
     from acheron.rag.ledger import ExperimentLedger
 
-    settings = get_settings()
-    if not settings.compute_available:
-        return _compute_error_json()
+    err = _require_api_key(x_anthropic_api_key)
+    if err:
+        return err
 
-    pipeline = get_pipeline()
+    pipeline = RAGPipeline(store=get_store(), api_key=x_anthropic_api_key)
     result = pipeline.discover(
         req.question, filter_source=req.source_filter, n_results=req.n_results
     )
@@ -237,13 +239,15 @@ async def api_discover(req: QueryRequest):
 
 
 @app.post("/api/analyze")
-async def api_analyze(req: QueryRequest):
+async def api_analyze(
+    req: QueryRequest, x_anthropic_api_key: Optional[str] = Header(default=None)
+):
     """Evidence-Bound Hypothesis Engine: evidence graph + IBE hypotheses + falsification."""
-    settings = get_settings()
-    if not settings.compute_available:
-        return _compute_error_json()
+    err = _require_api_key(x_anthropic_api_key)
+    if err:
+        return err
 
-    pipeline = get_pipeline()
+    pipeline = RAGPipeline(store=get_store(), api_key=x_anthropic_api_key)
     result = pipeline.analyze(
         req.question,
         mode=req.mode,
@@ -333,7 +337,9 @@ async def api_ledger():
 # FAST ENDPOINT - Direct LLM call with minimal prompt for <1min responses
 # ======================================================================
 @app.post("/api/fast")
-async def api_fast(req: QueryRequest):
+async def api_fast(
+    req: QueryRequest, x_anthropic_api_key: Optional[str] = Header(default=None)
+):
     """Fast decision/calculation endpoint - bypasses complex pipeline.
 
     Use this for quick answers to calculation or viability questions.
@@ -341,11 +347,11 @@ async def api_fast(req: QueryRequest):
     """
     from acheron.rag.hypothesis_engine import FAST_DECISION_PROMPT, FAST_QUERY_TEMPLATE
 
-    settings = get_settings()
-    if not settings.compute_available:
-        return _compute_error_json()
+    err = _require_api_key(x_anthropic_api_key)
+    if err:
+        return err
 
-    pipeline = get_pipeline()
+    pipeline = RAGPipeline(store=get_store(), api_key=x_anthropic_api_key)
 
     # Retrieve minimal context (just 4 chunks for speed)
     results = pipeline.store.search(
